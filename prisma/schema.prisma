@@ -29,21 +29,21 @@ enum TransactionStatus {
 // MODEL UTAMA
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  phone         String?   @unique
-  name          String
-  password      String
-  role          UserRole  @default(CUSTOMER)
-  points        Int       @default(0)
-  referralCode  String    @unique @default(cuid())
-  referredById  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  phone              String?   @unique
+  name               String
+  password           String
+  role               UserRole  @default(CUSTOMER)
+  points             Int       @default(0)
+  
+  pointsLastUpdatedAt DateTime?
+  referralCode       String    @unique @default(cuid())
+  referredById       String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  // [PENAMBAHAN] Field untuk menandai email sudah terverifikasi atau belum
-  emailVerified DateTime?
-
+  emailVerified      DateTime?
   organizedEvents    Event[]             @relation("OrganizedBy")
   transactions       Transaction[]
   reviews            Review[]
@@ -52,7 +52,6 @@ model User {
   referredBy         User?               @relation("Referrals", fields: [referredById], references: [id])
   referrals          User[]              @relation("Referrals")
   
-  // [PENAMBAHAN] Relasi ke token verifikasi dan reset password
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
 }
@@ -139,7 +138,6 @@ model Voucher {
   transactions Transaction[]
 }
 
-// [MODEL BARU] Untuk menyimpan token verifikasi email
 model VerificationToken {
   id      String   @id @default(cuid())
   token   String   @unique
@@ -150,7 +148,6 @@ model VerificationToken {
   @@unique([userId, token])
 }
 
-// [MODEL BARU] Untuk menyimpan token reset password
 model PasswordResetToken {
   id      String   @id @default(cuid())
   token   String   @unique

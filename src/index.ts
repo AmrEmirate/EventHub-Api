@@ -24,15 +24,19 @@ dotenv.config();
 const app: Express = express();
 const port = process.env.PORT || 8000;
 
-// --- Middleware Keamanan (diletakkan di paling atas) ---
+// --- Middleware Keamanan ---
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// [BARU] Sajikan file statis dari folder 'public'
+// Ini memungkinkan akses ke http://localhost:8000/uploads/namafile.jpg
+app.use(express.static('public'));
+
 // Rate Limiter umum untuk semua API
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 menit
-    max: 100, // Batasi setiap IP hingga 100 permintaan per 15 menit
+    windowMs: 15 * 60 * 1000, 
+    max: 100,
     message: 'Terlalu banyak permintaan dari IP ini, silakan coba lagi setelah 15 menit',
     standardHeaders: true,
     legacyHeaders: false,
@@ -45,7 +49,6 @@ const loginLimiter = rateLimit({
     message: 'Terlalu banyak percobaan login, silakan coba lagi setelah 15 menit',
 });
 
-// Terapkan limiter umum ke semua rute /api
 app.use('/api/', apiLimiter);
 
 // --- Rute Dasar ---
@@ -66,7 +69,7 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/cron/expire-transactions', expireTransactionsHandler);
 app.use('/api/cron/expire-points', expirePointsHandler);
 
-// --- Middleware Penangan Error (harus paling akhir) ---
+// --- Middleware Penangan Error ---
 app.use(errorMiddleware);
 
 // Jalankan Server

@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import * as transactionService from './transaction.service';
 import { z } from 'zod';
 
-// [PENAMBAHAN] Skema validasi untuk pembuatan transaksi
 const createTransactionSchema = z.object({
   eventId: z.string().uuid({ message: "Event ID tidak valid" }),
   quantity: z.number().int().positive({ message: "Jumlah tiket harus positif" }),
@@ -12,35 +11,37 @@ const createTransactionSchema = z.object({
 
 export const createTransactionController = async (req: Request, res: Response) => {
   try {
-    // [PERBAIKAN] Validasi input terlebih dahulu
     const validatedData = createTransactionSchema.parse(req.body);
     const { eventId, quantity, voucherCode, usePoints } = validatedData;
     
     const transaction = await transactionService.createTransaction(req.user!.id, eventId, quantity, voucherCode, usePoints);
     res.status(201).json(transaction);
   } catch (error: any) {
-    // [PERBAIKAN] Tangani error validasi Zod secara spesifik
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
     }
-    // Mengembalikan status 400 untuk error bisnis lainnya (misal: tiket habis)
     res.status(400).json({ message: error.message });
   }
 };
 
+/**
+ * [DIUBAH] Controller sekarang mengirimkan seluruh objek req.file ke service.
+ */
 export const uploadPaymentProofController = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
         throw new Error("File bukti pembayaran tidak ditemukan.");
     }
     const transactionId = req.params.id;
-    await transactionService.uploadPaymentProof(req.user!.id, transactionId, req.file.path);
+    // Kirim seluruh objek `req.file` yang berisi detail file yang diupload
+    await transactionService.uploadPaymentProof(req.user!.id, transactionId, req.file);
     res.status(200).json({ message: 'Upload bukti pembayaran berhasil' });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }
 };
 
+// ... sisa controller lainnya (getOrganizerTransactionsController, dll) tetap sama
 export const getOrganizerTransactionsController = async (req: Request, res: Response) => {
     if (req.user?.role !== 'ORGANIZER') {
         return res.status(403).json({ message: "Akses ditolak." });

@@ -1,27 +1,25 @@
 import prisma from '../../config/prisma';
 import { Prisma } from '@prisma/client';
-// [PENAMBAHAN] Impor helper untuk hash dan compare password
 import { hashPassword, comparePassword } from '../../utils/password.helper';
 
-// Mengambil profil user berdasarkan ID
+// --- FUNGSI LAMA (TIDAK BERUBAH) ---
 export const getUserProfile = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { // Pilih data yang ingin ditampilkan, jangan sertakan password
+    select: { 
       id: true,
       email: true,
       name: true,
       role: true,
       points: true,
       referralCode: true,
-      phone: true, // Pastikan phone juga diambil
-      profile: true, // Sertakan data dari tabel Profile
+      phone: true,
+      profile: true,
     },
   });
   return user;
 };
 
-// Tipe data untuk input update
 type UpdateProfileInput = {
   name?: string;
   bio?: string;
@@ -29,23 +27,22 @@ type UpdateProfileInput = {
   phone?: string;
 };
 
-// Memperbarui profil user
 export const updateUserProfile = async (userId: string, data: UpdateProfileInput) => {
   const { name, bio, avatarUrl, phone } = data;
 
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: {
-      name: name, // Update nama di tabel User
-      phone: phone, // Update nomor telepon di tabel User
-      profile: { // Update atau buat data di tabel Profile
+      name: name, 
+      phone: phone, 
+      profile: { 
         upsert: {
-          create: { bio, avatarUrl }, // Buat jika belum ada
-          update: { bio, avatarUrl }, // Update jika sudah ada
+          create: { bio, avatarUrl }, 
+          update: { bio, avatarUrl },
         },
       },
     },
-    select: { // Pilih kembali data yang ingin ditampilkan
+    select: { 
       id: true,
       email: true,
       name: true,
@@ -56,33 +53,70 @@ export const updateUserProfile = async (userId: string, data: UpdateProfileInput
   return updatedUser;
 };
 
-
-// [PENAMBAHAN] Fungsi baru untuk mengubah password
 export const changeUserPassword = async (
   userId: string,
   oldPass: string,
   newPass: string
 ) => {
-  // 1. Ambil data user beserta password hash-nya
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new Error('User tidak ditemukan.');
   }
 
-  // 2. Bandingkan password lama yang diinput dengan yang ada di database
   const isOldPasswordValid = await comparePassword(oldPass, user.password);
   if (!isOldPasswordValid) {
     throw new Error('Password lama tidak sesuai.');
   }
 
-  // 3. Hash password baru
   const newHashedPassword = await hashPassword(newPass);
 
-  // 4. Update password di database
   await prisma.user.update({
     where: { id: userId },
     data: { password: newHashedPassword },
   });
 
   return { message: 'Password berhasil diperbarui.' };
+};
+
+export const addPointsToUser = async (userId: string, pointsToAdd: number) => {
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        points: {
+          increment: pointsToAdd,
+        },
+        pointsLastUpdatedAt: new Date(), 
+      },
+    });
+    return updatedUser;
+  } catch (error) {
+    console.error(`Gagal menambahkan ${pointsToAdd} poin untuk user ${userId}:`, error);
+    throw new Error('Gagal memperbarui poin pengguna.');
+  }
+};
+
+// --- [FUNGSI BARU] ---
+// Fungsi untuk mengupdate URL avatar pengguna
+export const updateUserAvatar = async (userId: string, avatarPath: string) => {
+  // Gunakan upsert: jika profil belum ada, buat baru. Jika sudah ada, update.
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      profile: {
+        upsert: {
+          create: { avatarUrl: avatarPath },
+          update: { avatarUrl: avatarPath },
+        },
+      },
+    },
+    select: { // Kirim kembali data profil yang terupdate
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      profile: true,
+    },
+  });
+  return updatedUser;
 };
