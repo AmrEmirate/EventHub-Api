@@ -12,11 +12,12 @@ import eventRoutes from './api/events/events.routes';
 import transactionRoutes from './api/transactions/transaction.routes';
 import reviewRoutes from './api/reviews/review.routes';
 import dashboardRoutes from './api/dashboard/dashboard.routes';
-import notificationRoutes from './api/notifications/notification.routes'; // <-- Impor baru
+import notificationRoutes from './api/notifications/notification.routes';
 
 // Impor Handler Cron Job
 import expireTransactionsHandler from './api/cron/expire-transactions';
 import expirePointsHandler from './api/cron/expire-points';
+import cancelPendingConfirmationsHandler from './api/cron/cancel-pending-confirmations';
 
 // Impor Middleware Error
 import { errorMiddleware } from './middlewares/error.middleware';
@@ -49,11 +50,12 @@ app.use('/api/v1/events', eventRoutes);
 app.use('/api/v1/transactions', transactionRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
-app.use('/api/v1/notifications', notificationRoutes); // <-- Daftarkan rute baru di sini
+app.use('/api/v1/notifications', notificationRoutes);
 
 // --- Pendaftaran Rute Cron Job ---
 app.use('/api/cron/expire-transactions', expireTransactionsHandler);
 app.use('/api/cron/expire-points', expirePointsHandler);
+app.use('/api/cron/cancel-pending-confirmations', cancelPendingConfirmationsHandler);
 
 // --- Middleware Penangan Error ---
 app.use(errorMiddleware);
