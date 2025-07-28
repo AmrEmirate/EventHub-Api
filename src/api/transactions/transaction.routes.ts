@@ -6,21 +6,22 @@ import { upload } from '../../middlewares/upload.middleware';
 const router = Router();
 
 // --- Rute untuk Pengguna (Customer) ---
-// Semua rute ini memerlukan login
 router.post('/', authMiddleware, controller.createTransactionController);
 router.get('/me', authMiddleware, controller.getMyTransactionsController);
+
+// [RUTE BARU] Rute untuk mendapatkan detail satu transaksi
+router.get('/:id', authMiddleware, controller.getTransactionByIdController);
+
 router.post(
   '/:id/upload', 
   authMiddleware, 
   upload.single('paymentProof'), 
   controller.uploadPaymentProofController
 );
-// Menambahkan rute untuk membatalkan transaksi
 router.post('/:id/cancel', authMiddleware, controller.cancelTransactionController);
 
 
 // --- Rute untuk Penyelenggara (Organizer) ---
-// Semua rute ini juga memerlukan login dan pengecekan peran di dalam controller
 router.get('/organizer', authMiddleware, controller.getOrganizerTransactionsController);
 router.post('/organizer/:id/approve', authMiddleware, controller.approveTransactionController);
 router.post('/organizer/:id/reject', authMiddleware, controller.rejectTransactionController);

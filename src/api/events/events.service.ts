@@ -4,22 +4,57 @@ import { Event } from '@prisma/client';
 type CreateEventInput = Omit<Event, 'id' | 'slug' | 'ticketSold' | 'createdAt' | 'updatedAt'>;
 
 /**
- * Mendapatkan semua event dengan filter & pencarian
+ * [DIUBAH] Mendapatkan semua event dengan filter & pencarian, termasuk filter tanggal.
  */
-export const getAllEvents = async (filters: { search?: string; location?: string; category?: string; }) => {
-  const { search, location, category } = filters;
+export const getAllEvents = async (filters: { 
+  search?: string; 
+  location?: string; 
+  category?: string;
+  startDate?: string; // Tambahan
+  endDate?: string;   // Tambahan
+}) => {
+  const { search, location, category, startDate, endDate } = filters;
+  
+  const whereClause: any = {
+    // Selalu tampilkan event yang akan datang, kecuali ada filter tanggal
+  };
+
+  const andConditions = [];
+
+  // Tambahkan filter lain jika ada
+  if (search) {
+    andConditions.push({ name: { contains: search, mode: 'insensitive' } });
+  }
+  if (location) {
+    andConditions.push({ location: { equals: location, mode: 'insensitive' } });
+  }
+  if (category) {
+    andConditions.push({ category: { equals: category, mode: 'insensitive' } });
+  }
+  
+  // [LOGIKA BARU] Logika filter tanggal yang disempurnakan
+  if (startDate && endDate) {
+    andConditions.push({
+      startDate: { gte: new Date(startDate) },
+      endDate: { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) }, // Sampai akhir hari
+    });
+  } else if (startDate) {
+    andConditions.push({ startDate: { gte: new Date(startDate) } });
+  } else {
+    // Jika tidak ada filter tanggal, tampilkan event yang akan datang
+    andConditions.push({ startDate: { gte: new Date() } });
+  }
+
+  if (andConditions.length > 0) {
+    whereClause.AND = andConditions;
+  }
+
   return prisma.event.findMany({
-    where: {
-      AND: [
-        search ? { name: { contains: search, mode: 'insensitive' } } : {},
-        location ? { location: { equals: location, mode: 'insensitive' } } : {},
-        category ? { category: { equals: category, mode: 'insensitive' } } : {},
-      ],
-      startDate: { gte: new Date() },
-    },
+    where: whereClause,
     orderBy: { startDate: 'asc' },
   });
 };
+
 
 /**
  * Mendapatkan satu event berdasarkan slug-nya
@@ -84,7 +119,7 @@ export const getEventAttendees = async (organizerId: string, eventId: string) =>
 }
 
 /**
- * [BARU] Mendapatkan semua event yang dibuat oleh organizer tertentu
+ * Mendapatkan semua event yang dibuat oleh organizer tertentu
  */
 export const getMyOrganizerEvents = async (organizerId: string) => {
   return prisma.event.findMany({

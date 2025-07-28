@@ -36,7 +36,6 @@ model User {
   password           String
   role               UserRole  @default(CUSTOMER)
   points             Int       @default(0)
-  
   pointsLastUpdatedAt DateTime?
   referralCode       String    @unique @default(cuid())
   referredById       String?
@@ -54,6 +53,8 @@ model User {
   
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  
+  notifications      Notification[] // <-- TAMBAHKAN RELASI INI
 }
 
 model Profile {
@@ -128,13 +129,10 @@ model Voucher {
   maxDiscount     Float?
   expiresAt       DateTime
   isUsed          Boolean  @default(false)
-
   eventId      String?
   event        Event?   @relation("EventVouchers", fields: [eventId], references: [id])
-
   userId       String?
   user         User?    @relation("UserVouchers", fields: [userId], references: [id])
-
   transactions Transaction[]
 }
 
@@ -144,7 +142,6 @@ model VerificationToken {
   expires DateTime
   userId  String
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([userId, token])
 }
 
@@ -154,6 +151,16 @@ model PasswordResetToken {
   expires DateTime
   userId  String
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([userId, token])
+}
+
+// [MODEL BARU] Untuk menyimpan notifikasi pengguna
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

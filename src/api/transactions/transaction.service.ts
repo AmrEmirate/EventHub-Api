@@ -1,9 +1,9 @@
 import prisma from '../../config/prisma';
 import { sendTransactionStatusEmail } from '../../utils/mailer';
 import { Prisma } from '@prisma/client';
+// [BARU] Impor service notifikasi yang sudah kita buat
+import { createNotification } from '../notifications/notification.service';
 
-// ... (fungsi createTransaction, getTransactionsByUserId, dll. tetap sama)
-// ... (Pastikan semua fungsi lain sebelum uploadPaymentProof ada di sini)
 export const createTransaction = async (
   userId: string,
   eventId: string,
@@ -30,8 +30,7 @@ export const createTransaction = async (
     if (voucherCode) {
       const voucher = await tx.voucher.findFirst({
         where: { 
-          code: voucherCode, 
-          userId: userId, 
+          code: voucherCode,
           expiresAt: { gte: new Date() },
           isUsed: false
         },
@@ -93,10 +92,6 @@ export const createTransaction = async (
   });
 };
 
-
-/**
- * [DIUBAH] User mengupload bukti bayar, simpan URL relatif dan terima objek file.
- */
 export const uploadPaymentProof = async (userId: string, transactionId: string, file: Express.Multer.File) => {
   const transaction = await prisma.transaction.findFirst({
     where: { id: transactionId, userId: userId }
@@ -106,21 +101,16 @@ export const uploadPaymentProof = async (userId: string, transactionId: string, 
   if (transaction.status !== 'PENDING_PAYMENT') {
     throw new Error("Hanya bisa mengunggah bukti untuk transaksi yang menunggu pembayaran.");
   }
-
-  // Buat URL yang bisa diakses dari frontend (contoh: /uploads/paymentProof-1678886400000.jpg)
   const fileUrl = `/uploads/${file.filename}`;
-
   return prisma.transaction.update({
     where: { id: transactionId },
     data: { 
-      // Simpan URL, bukan path sistem file
       paymentProofUrl: fileUrl, 
       status: 'PENDING_CONFIRMATION'
     },
   });
 };
 
-// ... (Pastikan semua fungsi lain sesudah uploadPaymentProof ada di sini)
 export const getTransactionsByUserId = async (userId: string) => {
   return prisma.transaction.findMany({
     where: { userId: userId },
@@ -130,46 +120,77 @@ export const getTransactionsByUserId = async (userId: string) => {
     orderBy: { createdAt: 'desc' }
   });
 };
+
 export const getTransactionsForOrganizer = async (organizerId: string) => {
   return prisma.transaction.findMany({
     where: { event: { organizerId: organizerId } },
-    include: { event: { select: { name: true } }, user: { select: { name: true, email: true } } },
+    include: { 
+        event: { select: { name: true } }, 
+        user: { select: { name: true, email: true } },
+    },
     orderBy: { createdAt: 'desc' }
   });
 };
+
 export const approveTransaction = async (organizerId: string, transactionId: string) => {
   const transaction = await prisma.transaction.findFirst({
     where: { id: transactionId, event: { organizerId: organizerId } },
-    include: { user: { select: { email: true } } }
+    include: { 
+        user: { select: { email: true } },
+        event: { select: { name: true } }
+    }
   });
   if (!transaction) throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
+
   if (transaction.status !== 'PENDING_CONFIRMATION') {
     throw new Error("Hanya transaksi yang menunggu konfirmasi yang bisa disetujui.");
   }
+
   await sendTransactionStatusEmail(
     transaction.user.email,
     'Pembayaran Dikonfirmasi',
-    `Pembayaran Anda untuk transaksi #${transaction.id} telah berhasil dikonfirmasi.`
+    `Pembayaran Anda untuk event "${transaction.event.name}" telah berhasil dikonfirmasi.`
   );
+  
+  // [NOTIFIKASI] Buat notifikasi untuk pengguna
+  await createNotification(
+    transaction.userId,
+    `Pembayaran untuk event "${transaction.event.name}" telah dikonfirmasi! E-tiket Anda sekarang tersedia.`
+  );
+  
   return prisma.transaction.update({
     where: { id: transactionId },
     data: { status: 'COMPLETED' },
   });
 };
+
 export const rejectTransaction = async (organizerId: string, transactionId: string) => {
   const transaction = await prisma.transaction.findFirst({
     where: { 
       id: transactionId, 
       event: { organizerId: organizerId } 
     },
-    include: { user: { select: { email: true } } }
+    include: { 
+        user: { select: { email: true } },
+        event: { select: { name: true } }
+    }
   });
-  if (!transaction) {
-    throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
-  }
-  if (transaction.status !== 'PENDING_CONFIRMATION') {
-    throw new Error("Hanya transaksi yang menunggu konfirmasi yang bisa ditolak.");
-  }
+
+  if (!transaction) throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
+  if (transaction.status !== 'PENDING_CONFIRMATION') throw new Error("Hanya transaksi yang menunggu konfirmasi yang bisa ditolak.");
+
+  await sendTransactionStatusEmail(
+    transaction.user.email,
+    'Pembayaran Ditolak',
+    `Mohon maaf, pembayaran Anda untuk event "${transaction.event.name}" ditolak. Poin atau voucher yang digunakan telah dikembalikan.`
+  );
+
+  // [NOTIFIKASI] Buat notifikasi untuk pengguna
+  await createNotification(
+    transaction.userId,
+    `Pembayaran untuk event "${transaction.event.name}" ditolak. Poin dan voucher Anda telah dikembalikan.`
+  );
+
   const dbOperations: Prisma.PrismaPromise<any>[] = [];
   dbOperations.push(prisma.event.update({ where: { id: transaction.eventId }, data: { ticketSold: { decrement: transaction.quantity } } }));
   dbOperations.push(prisma.transaction.update({ where: { id: transactionId }, data: { status: 'REJECTED' } }));
@@ -179,23 +200,17 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
   if (transaction.voucherId) {
     dbOperations.push(prisma.voucher.update({ where: { id: transaction.voucherId }, data: { isUsed: false } }));
   }
-  await sendTransactionStatusEmail(
-    transaction.user.email,
-    'Pembayaran Ditolak',
-    `Mohon maaf, pembayaran Anda untuk transaksi #${transaction.id} ditolak. Jika Anda menggunakan poin atau voucher, keduanya telah dikembalikan ke akun Anda. Silakan hubungi penyelenggara untuk info lebih lanjut.`
-  );
+  
   return prisma.$transaction(dbOperations);
 };
+
 export const cancelTransaction = async (userId: string, transactionId:string) => {
     const transaction = await prisma.transaction.findFirst({
         where: { id: transactionId, userId: userId },
     });
-    if (!transaction) {
-        throw new Error('Transaksi tidak ditemukan atau Anda tidak punya akses.');
-    }
-    if (transaction.status !== 'PENDING_PAYMENT') {
-        throw new Error('Hanya transaksi yang menunggu pembayaran yang bisa dibatalkan.');
-    }
+    if (!transaction) throw new Error('Transaksi tidak ditemukan.');
+    if (transaction.status !== 'PENDING_PAYMENT') throw new Error('Hanya transaksi yang menunggu pembayaran yang bisa dibatalkan.');
+    
     return prisma.$transaction(async (tx) => {
         await tx.event.update({ where: { id: transaction.eventId }, data: { ticketSold: { decrement: transaction.quantity } } });
         if (transaction.pointsUsed > 0) {
@@ -204,7 +219,29 @@ export const cancelTransaction = async (userId: string, transactionId:string) =>
         if (transaction.voucherId) {
             await tx.voucher.update({ where: { id: transaction.voucherId }, data: { isUsed: false } });
         }
-        const cancelledTransaction = await tx.transaction.update({ where: { id: transactionId }, data: { status: 'CANCELLED' } });
-        return cancelledTransaction;
+        return await tx.transaction.update({ where: { id: transactionId }, data: { status: 'CANCELLED' } });
     });
+};
+
+export const getTransactionById = async (userId: string, transactionId: string) => {
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      id: transactionId,
+      userId: userId,
+    },
+    include: {
+      user: {
+        select: { name: true, email: true },
+      },
+      event: {
+        select: { name: true, location: true, startDate: true },
+      },
+    },
+  });
+
+  if (!transaction) {
+    throw new Error('Transaksi tidak ditemukan atau Anda tidak memiliki akses.');
+  }
+
+  return transaction;
 };

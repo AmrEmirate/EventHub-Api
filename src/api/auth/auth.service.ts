@@ -4,46 +4,47 @@ import { generateSecureToken } from '../../utils/token.helper';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/mailer';
 import { User } from '@prisma/client';
 
-// Impor dua service baru yang akan kita gunakan
 import { addPointsToUser } from '../users/user.service';
 import { createVoucherForNewUser } from '../vouchers/voucher.service';
+// [BARU] Impor service notifikasi
+import { createNotification } from '../notifications/notification.service';
 
-// Tambahkan 'referralCode' ke tipe data input
+
 type RegisterInput = {
   email: string;
   name: string;
   password: string;
   role: 'CUSTOMER' | 'ORGANIZER';
   phone?: string | null;
-  referralCode?: string | null; // Tambahan
+  referralCode?: string | null;
 };
 
-// --- FUNGSI REGISTER DENGAN LOGIKA BARU ---
 export const registerUser = async (data: RegisterInput) => {
   const { email, name, password, role, phone, referralCode } = data;
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     if (existingUser.emailVerified) throw new Error('Email sudah terdaftar.');
-    // Hapus user lama yang belum terverifikasi untuk memungkinkan pendaftaran ulang
     await prisma.user.delete({ where: { id: existingUser.id }});
   }
 
-  // --- [LOGIKA REFERRAL DIMULAI] ---
   let referredById: string | null = null;
   if (referralCode && referralCode.trim() !== '') {
     const referrer = await prisma.user.findUnique({
       where: { referralCode: referralCode.trim() },
     });
     
-    // Jika pemilik kode referral ditemukan
     if (referrer) {
       referredById = referrer.id;
-      // Tambahkan 15,000 poin ke pemilik kode referral
       await addPointsToUser(referrer.id, 15000);
+
+      // [NOTIFIKASI] Buat notifikasi untuk pemilik kode referral
+      await createNotification(
+          referrer.id,
+          `Selamat! Seseorang telah menggunakan kode referral Anda. Anda mendapatkan 15,000 poin.`
+      );
     }
   }
-  // --- [LOGIKA REFERRAL SELESAI] ---
 
   const hashedPassword = await hashPassword(password);
   
@@ -54,19 +55,14 @@ export const registerUser = async (data: RegisterInput) => {
       password: hashedPassword, 
       role, 
       phone,
-      referredById: referredById, // Simpan ID referrer jika ada
+      referredById: referredById,
     },
   });
 
-  // --- [LOGIKA HADIAH KUPON DIMULAI] ---
-  // Jika pendaftaran berhasil melalui referral, buatkan kupon untuk user baru
   if (referredById) {
-    // Buat kupon diskon 10% yang berlaku 3 bulan
     await createVoucherForNewUser(user.id);
   }
-  // --- [LOGIKA HADIAH KUPON SELESAI] ---
 
-  // Proses verifikasi email (tetap sama)
   const token = generateSecureToken();
   const expires = new Date(new Date().getTime() + 3600 * 1000); // 1 jam
 
@@ -78,8 +74,6 @@ export const registerUser = async (data: RegisterInput) => {
   return { message: "Registrasi berhasil! Cek email Anda untuk verifikasi." };
 };
 
-
-// --- SISA SERVICE LAINNYA (TIDAK BERUBAH) ---
 
 export const verifyEmail = async (token: string) => {
     const existingToken = await prisma.verificationToken.findUnique({ where: { token } });

@@ -24,16 +24,12 @@ export const createTransactionController = async (req: Request, res: Response) =
   }
 };
 
-/**
- * [DIUBAH] Controller sekarang mengirimkan seluruh objek req.file ke service.
- */
 export const uploadPaymentProofController = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
         throw new Error("File bukti pembayaran tidak ditemukan.");
     }
     const transactionId = req.params.id;
-    // Kirim seluruh objek `req.file` yang berisi detail file yang diupload
     await transactionService.uploadPaymentProof(req.user!.id, transactionId, req.file);
     res.status(200).json({ message: 'Upload bukti pembayaran berhasil' });
   } catch (error: any) {
@@ -41,7 +37,6 @@ export const uploadPaymentProofController = async (req: Request, res: Response) 
   }
 };
 
-// ... sisa controller lainnya (getOrganizerTransactionsController, dll) tetap sama
 export const getOrganizerTransactionsController = async (req: Request, res: Response) => {
     if (req.user?.role !== 'ORGANIZER') {
         return res.status(403).json({ message: "Akses ditolak." });
@@ -93,5 +88,17 @@ export const cancelTransactionController = async (req: Request, res: Response) =
     res.status(200).json({ message: 'Transaksi berhasil dibatalkan', data: transaction });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+/**
+ * [CONTROLLER BARU] Untuk mengambil detail satu transaksi.
+ */
+export const getTransactionByIdController = async (req: Request, res: Response) => {
+  try {
+    const transaction = await transactionService.getTransactionById(req.user!.id, req.params.id);
+    res.status(200).json(transaction);
+  } catch (error: any) {
+    res.status(404).json({ message: error.message });
   }
 };
