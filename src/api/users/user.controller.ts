@@ -57,6 +57,7 @@ export const changePasswordController = async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
     }
+    // [PERBAIKAN] Mengubah status code menjadi 400 untuk error spesifik dari service
     res.status(400).json({ message: error.message });
   }
 };

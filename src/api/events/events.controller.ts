@@ -3,7 +3,7 @@ import * as eventService from './events.service';
 import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 
-// [PERBAIKAN] Pisahkan skema dasar sebelum refine
+// [PERBAIKAN] Gunakan .nullable().optional() untuk properti imageUrl
 const rawEventSchema = z.object({
   name: z.string().min(5, { message: "Nama minimal 5 karakter" }),
   description: z.string().min(20, { message: "Deskripsi minimal 20 karakter" }),
@@ -14,6 +14,7 @@ const rawEventSchema = z.object({
   isFree: z.boolean().default(false),
   ticketTotal: z.number().int().positive({ message: "Jumlah tiket harus angka positif" }),
   price: z.number().optional(),
+  imageUrl: z.string().url({ message: "URL gambar tidak valid" }).nullable().optional(),
 });
 
 // Skema untuk membuat event baru, terapkan refine di sini
@@ -29,7 +30,7 @@ const createEventSchema = rawEventSchema.refine(data => {
   if (data.isFree) {
     return { ...data, price: 0 };
   }
-  return { ...data, price: data.price! }; // Pastikan price tidak undefined setelah refine
+  return { ...data, price: data.price! };
 });
 
 // Skema untuk update event: panggil .partial() pada skema mentah
@@ -77,6 +78,7 @@ export const createEventController = async (req: Request, res: Response) => {
         res.status(201).json({ message: 'Event berhasil dibuat', data: newEvent });
     } catch (error: any) {
         if (error instanceof z.ZodError) {
+            console.error("Zod Validation Error:", error.flatten().fieldErrors);
             return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
         }
         res.status(500).json({ message: 'Gagal membuat event', error: error.message });
