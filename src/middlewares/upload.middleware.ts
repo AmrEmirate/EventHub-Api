@@ -1,14 +1,15 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs'; // [PERBAIKAN] Impor modul 'fs' dari Node.js
+import fs from 'fs';
+import os from 'os'; // [PENAMBAHAN] Impor modul 'os' untuk direktori temporary
 
-// [PERBAIKAN] Tentukan direktori upload
-const uploadDir = '/tmp/eventhub-uploads';
+// [PERBAIKAN] Gunakan direktori temporary sistem sebagai basis yang lebih aman
+// Ini lebih kompatibel dengan berbagai lingkungan hosting, termasuk Vercel.
+const uploadDir = path.join(os.tmpdir(), 'eventhub-uploads');
 
-// Konfigurasi penyimpanan file yang lebih robust
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // [PERBAIKAN] Cek dan buat direktori jika belum ada
+    // Cek dan buat direktori jika belum ada
     fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir); 
   },
@@ -19,4 +20,20 @@ const storage = multer.diskStorage({
   }
 });
 
-export const upload = multer({ storage: storage });
+export const upload = multer({ 
+  storage: storage,
+  // [SARAN] Tambahkan filter file untuk keamanan
+  fileFilter: (req, file, cb) => {
+    // Izinkan hanya tipe file gambar dan PDF
+    const allowedTypes = /jpeg|jpg|png|pdf/;
+    const mimetype = allowedTypes.test(file.mimetype);
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Tipe file tidak diizinkan. Hanya jpeg, jpg, png, dan pdf.'));
+  },
+  // [SARAN] Tambahkan batas ukuran file
+  limits: { fileSize: 5 * 1024 * 1024 } // Batas 5 MB
+});

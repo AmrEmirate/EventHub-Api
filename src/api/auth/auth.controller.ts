@@ -17,8 +17,16 @@ export const registerController = async (req: Request, res: Response) => {
   try {
     const validatedData = registerSchema.parse(req.body);
     const result = await authService.registerUser(validatedData);
-    res.status(200).json(result);
+    // [PERBAIKAN] Kirim status 201 untuk sukses membuat resource baru
+    res.status(201).json({ message: result.message, data: validatedData });
   } catch (error: any) {
+    // [PERBAIKAN] Tangani error Zod dan error duplikat email
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
+    }
+    if (error.message === 'Email sudah terdaftar.') {
+      return res.status(409).json({ message: error.message });
+    }
     res.status(400).json({ message: error.message });
   }
 };
@@ -45,7 +53,6 @@ export const loginController = async (req: Request, res: Response) => {
   }
 };
 
-// [CONTROLLER BARU]
 export const verifyEmailController = async (req: Request, res: Response) => {
     try {
         const { token } = req.query as { token: string };

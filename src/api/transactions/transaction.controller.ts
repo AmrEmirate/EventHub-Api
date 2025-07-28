@@ -1,12 +1,29 @@
 import { Request, Response } from 'express';
 import * as transactionService from './transaction.service';
+import { z } from 'zod';
+
+// [PENAMBAHAN] Skema validasi untuk pembuatan transaksi
+const createTransactionSchema = z.object({
+  eventId: z.string().uuid({ message: "Event ID tidak valid" }),
+  quantity: z.number().int().positive({ message: "Jumlah tiket harus positif" }),
+  voucherCode: z.string().optional(),
+  usePoints: z.boolean().optional(),
+});
 
 export const createTransactionController = async (req: Request, res: Response) => {
   try {
-    const { eventId, quantity, voucherCode, usePoints } = req.body;
+    // [PERBAIKAN] Validasi input terlebih dahulu
+    const validatedData = createTransactionSchema.parse(req.body);
+    const { eventId, quantity, voucherCode, usePoints } = validatedData;
+    
     const transaction = await transactionService.createTransaction(req.user!.id, eventId, quantity, voucherCode, usePoints);
     res.status(201).json(transaction);
   } catch (error: any) {
+    // [PERBAIKAN] Tangani error validasi Zod secara spesifik
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Input tidak valid", errors: error.flatten().fieldErrors });
+    }
+    // Mengembalikan status 400 untuk error bisnis lainnya (misal: tiket habis)
     res.status(400).json({ message: error.message });
   }
 };

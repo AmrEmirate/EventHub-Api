@@ -2,6 +2,7 @@ import request from 'supertest';
 import express, { Request, Response, NextFunction } from 'express';
 import reviewRoutes from '../review.routes';
 import { errorMiddleware } from '../../../middlewares/error.middleware';
+import { randomUUID } from 'crypto'; // [PENAMBAHAN] Impor untuk generate UUID
 
 // Mock middleware otentikasi
 jest.mock('../../../middlewares/auth.middleware', () => ({
@@ -14,14 +15,13 @@ jest.mock('../../../middlewares/auth.middleware', () => ({
   },
 }));
 
-// Mock service layer untuk mengontrol hasil dari database
+// Mock service layer
 jest.mock('../review.service', () => ({
   createReview: jest.fn().mockImplementation(async (userId, eventId, rating, comment) => {
-    // Simulasikan kasus di mana pengguna belum pernah membeli tiket
-    if (eventId === 'event-belum-dibeli') {
+    // [PERBAIKAN] Gunakan UUID yang sudah didefinisikan di dalam tes
+    if (eventId === '00000000-0000-0000-0000-000000000001') { // Contoh UUID untuk event yg belum dibeli
       throw new Error('Anda hanya bisa mengulas event yang pernah Anda hadiri.');
     }
-    // Simulasikan kasus sukses
     return Promise.resolve({
       id: 'new-review-id',
       userId,
@@ -40,16 +40,20 @@ app.use(errorMiddleware);
 describe('Review Endpoints', () => {
 
   describe('POST /api/v1/reviews', () => {
+    
+    // [PERBAIKAN] Definisikan UUID untuk digunakan dalam tes
+    const validEventId = randomUUID();
+    const unpurchasedEventId = '00000000-0000-0000-0000-000000000001';
 
     it('Harus menolak pembuatan ulasan jika data tidak lengkap', async () => {
       const res = await request(app)
         .post('/api/v1/reviews')
         .send({
-          eventId: 'some-event-id'
+          eventId: validEventId 
           // Sengaja tidak menyertakan "rating" yang wajib
         });
       
-      expect(res.statusCode).toEqual(400); // Mengharapkan error validasi Zod
+      expect(res.statusCode).toEqual(400);
       expect(res.body).toHaveProperty('errors');
     });
 
@@ -57,7 +61,7 @@ describe('Review Endpoints', () => {
       const res = await request(app)
         .post('/api/v1/reviews')
         .send({
-          eventId: 'event-belum-dibeli',
+          eventId: unpurchasedEventId, // [PERBAIKAN] Gunakan UUID
           rating: 5,
         });
         
@@ -69,7 +73,7 @@ describe('Review Endpoints', () => {
       const res = await request(app)
         .post('/api/v1/reviews')
         .send({
-          eventId: 'event-valid-id',
+          eventId: validEventId, // [PERBAIKAN] Gunakan UUID
           rating: 5,
           comment: 'Workshopnya sangat bermanfaat!'
         });
