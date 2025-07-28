@@ -1,15 +1,15 @@
 import request from 'supertest';
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import authRoutes from '../auth.routes';
 import * as authService from '../auth.service';
 import * as passwordHelper from '../../../utils/password.helper';
-import * as jwtHelper from '../../../utils/jwt.helper'; // [PENAMBAHAN] Impor untuk di-mock
+import * as jwtHelper from '../../../utils/jwt.helper'; // Impor untuk di-mock
 import prisma from '../../../config/prisma';
 
 // Mock semua dependensi eksternal dari controller
 jest.mock('../auth.service');
 jest.mock('../../../utils/password.helper');
-jest.mock('../../../utils/jwt.helper'); // [PENAMBAHAN] Mock jwt.helper
+jest.mock('../../../utils/jwt.helper'); // Mock jwt.helper
 jest.mock('../../../config/prisma', () => ({
   __esModule: true,
   default: {
@@ -21,7 +21,7 @@ jest.mock('../../../config/prisma', () => ({
 
 const mockedAuthService = authService as jest.Mocked<typeof authService>;
 const mockedPasswordHelper = passwordHelper as jest.Mocked<typeof passwordHelper>;
-const mockedJwtHelper = jwtHelper as jest.Mocked<typeof jwtHelper>; // [PENAMBAHAN]
+const mockedJwtHelper = jwtHelper as jest.Mocked<typeof jwtHelper>;
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
 
 const app = express();
@@ -31,6 +31,7 @@ app.use('/api/v1/auth', authRoutes);
 
 describe('Auth Endpoints', () => {
   beforeEach(() => {
+    // Membersihkan semua mock sebelum setiap tes dijalankan
     jest.clearAllMocks();
   });
 
@@ -111,8 +112,8 @@ describe('Auth Endpoints', () => {
         });
         
         mockedPasswordHelper.comparePassword.mockResolvedValue(true);
-        // [PERBAIKAN] Mock generateToken agar mengembalikan token palsu
-        mockedJwtHelper.generateToken.mockReturnValue('mock-jwt-token');
+        // [PERBAIKAN] Mock generateToken agar tidak menyebabkan error 500
+        mockedJwtHelper.generateToken.mockReturnValue('mock-jwt-token-yang-valid');
 
         const res = await request(app)
             .post('/api/v1/auth/login')
