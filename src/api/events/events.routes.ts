@@ -2,28 +2,31 @@ import { Router } from 'express';
 import {
     getAllEventsController,
     getEventBySlugController,
+    getEventByIdController, // Impor controller baru
     createEventController,
     updateEventController,
     deleteEventController,
     getEventAttendeesController,
-    getMyOrganizerEventsController // Impor controller baru
+    getMyOrganizerEventsController
 } from './events.controller';
 import { authMiddleware } from '../../middlewares/auth.middleware';
-import { upload } from '../../middlewares/upload.middleware'; // Impor middleware upload
+import { upload } from '../../middlewares/upload.middleware';
 
 const router = Router();
 
 // Rute Publik
 router.get('/', getAllEventsController);
 
-// [BARU] Rute untuk mendapatkan event milik organizer
-// PENTING: Tempatkan rute ini SEBELUM rute dinamis '/:slug'
+// Rute Terproteksi
 router.get('/organizer/my-events', authMiddleware, getMyOrganizerEventsController);
 
-// Rute dinamis untuk slug harus setelah rute yang lebih spesifik
+// Rute baru untuk mengambil event berdasarkan ID (untuk halaman edit)
+// Tempatkan sebelum rute slug agar tidak terjadi konflik
+router.get('/id/:id', authMiddleware, getEventByIdController);
+
+// Rute dinamis untuk slug (untuk halaman detail publik)
 router.get('/:slug', getEventBySlugController);
 
-// Rute Terproteksi (memerlukan login)
 router.post('/', authMiddleware, upload.single('imageUrl'), createEventController);
 router.put('/:id', authMiddleware, upload.single('imageUrl'), updateEventController);
 router.delete('/:id', authMiddleware, deleteEventController);

@@ -57,6 +57,18 @@ export const getAllEventsController = async (req: Request, res: Response) => {
     }
 };
 
+export const getEventByIdController = async (req: Request, res: Response) => {
+    try {
+        const event = await eventService.getEventById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event tidak ditemukan' });
+        }
+        res.status(200).json(event);
+    } catch (error: any) {
+        res.status(500).json({ message: 'Gagal mengambil event', error: error.message });
+    }
+};
+
 export const getEventBySlugController = async (req: Request, res: Response) => {
     try {
         const event = await eventService.getEventBySlug(req.params.slug);
@@ -76,7 +88,6 @@ export const createEventController = async (req: Request, res: Response) => {
     try {
         const validatedData = createEventSchema.parse(req.body);
         
-        // [PERBAIKAN] Ubah `undefined` menjadi `null` agar sesuai dengan skema Prisma
         const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
         const eventData = { ...validatedData, organizerId: req.user.id, imageUrl };
