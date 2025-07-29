@@ -128,11 +128,11 @@ export const getTransactionsByUserId = async (userId: string) => {
     include: {
       event: { 
         select: { 
-          id: true, // Tambahkan id untuk key
+          id: true,
           name: true, 
           slug: true, 
           startDate: true, 
-          endDate: true // <-- Tambahkan baris ini
+          endDate: true // <-- Pastikan baris ini ada
         } 
       }
     },
@@ -244,7 +244,6 @@ export const getTransactionById = async (userId: string, transactionId: string) 
   const transaction = await prisma.transaction.findFirst({
     where: {
       id: transactionId,
-      // Izinkan organizer juga untuk melihat detail transaksi event mereka
       OR: [
         { userId: userId },
         { event: { organizerId: userId } }

@@ -7,9 +7,6 @@ export const createReview = async (userId: string, eventId: string, rating: numb
       userId,
       eventId,
       status: 'COMPLETED',
-    },
-    include: {
-      event: true, // Sertakan data event untuk memeriksa tanggal
     }
   });
 
@@ -17,12 +14,16 @@ export const createReview = async (userId: string, eventId: string, rating: numb
     throw new Error('Anda hanya bisa mengulas event yang tiketnya sudah Anda beli.');
   }
 
-  // 2. Cek apakah event sudah selesai
-  if (new Date(completedTransaction.event.endDate) > new Date()) {
+  // [PERUBAHAN] Pengecekan tanggal selesai event dinonaktifkan sesuai permintaan
+  // agar pengguna bisa langsung memberi ulasan setelah membayar.
+  /*
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (event && new Date(event.endDate) > new Date()) {
     throw new Error('Anda baru bisa memberikan ulasan setelah event selesai.');
   }
+  */
 
-  // 3. Cek apakah user sudah pernah memberikan ulasan untuk event ini
+  // 2. Cek apakah user sudah pernah memberikan ulasan untuk event ini
   const existingReview = await prisma.review.findUnique({
     where: { userId_eventId: { userId, eventId } },
   });
@@ -31,7 +32,7 @@ export const createReview = async (userId: string, eventId: string, rating: numb
     throw new Error('Anda sudah pernah memberikan ulasan untuk event ini.');
   }
 
-  // 4. Buat ulasan baru
+  // 3. Buat ulasan baru
   return prisma.review.create({
     data: { userId, eventId, rating, comment },
   });
