@@ -1,66 +1,69 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
 import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+// [PERBAIKAN] Ubah cara impor swaggerDocument
+import * as swaggerDocument from './swagger';
 
-// Impor Rute Fitur
+// Impor Rute
 import authRoutes from './api/auth/auth.routes';
-import userRoutes from './api/users/user.routes';
-import voucherRoutes from './api/vouchers/voucher.routes';
 import eventRoutes from './api/events/events.routes';
 import transactionRoutes from './api/transactions/transaction.routes';
+import userRoutes from './api/users/user.routes';
+import voucherRoutes from './api/vouchers/voucher.routes';
 import reviewRoutes from './api/reviews/review.routes';
 import dashboardRoutes from './api/dashboard/dashboard.routes';
 import notificationRoutes from './api/notifications/notification.routes';
-
-// Impor Handler Cron Job
-import expireTransactionsHandler from './api/cron/expire-transactions';
-import expirePointsHandler from './api/cron/expire-points';
-import cancelPendingConfirmationsHandler from './api/cron/cancel-pending-confirmations';
-
-// Impor Middleware Error
 import { errorMiddleware } from './middlewares/error.middleware';
 
+// Impor tugas cron
+import './api/cron/expire-transactions';
+import './api/cron/expire-points';
+import './api/cron/cancel-pending-confirmations';
+
 dotenv.config();
-const app: Express = express();
-const port = process.env.PORT || 8000;
 
-// --- Middleware Keamanan ---
-app.use(helmet());
-app.use(cors());
+const app = express();
+const PORT = process.env.PORT || 8000;
+
+// --- Middleware ---
+
+// Konfigurasi CORS untuk mengizinkan permintaan dari frontend
+const corsOptions = {
+  origin: 'http://localhost:3000',
+  optionsSuccessStatus: 200 
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
 
-// Rate Limiter
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
-app.use('/api/', apiLimiter);
+// Sajikan file statis dari folder 'public'
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
-// --- Rute Dasar ---
-app.get('/', (req: Request, res: Response) => {
-  res.send('Selamat datang di API EventHub!');
-});
+// --- Rute API ---
+const apiRouter = express.Router();
+apiRouter.use('/auth', authRoutes);
+apiRouter.use('/events', eventRoutes);
+apiRouter.use('/transactions', transactionRoutes);
+apiRouter.use('/users', userRoutes);
+apiRouter.use('/vouchers', voucherRoutes);
+apiRouter.use('/reviews', reviewRoutes);
+apiRouter.use('/dashboard', dashboardRoutes);
+apiRouter.use('/notifications', notificationRoutes);
 
-// --- Pendaftaran Rute Fitur ---
-app.use('/api/v1/auth', loginLimiter, authRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/vouchers', voucherRoutes);
-app.use('/api/v1/events', eventRoutes);
-app.use('/api/v1/transactions', transactionRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/dashboard', dashboardRoutes);
-app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1', apiRouter);
 
-// --- Pendaftaran Rute Cron Job ---
-app.use('/api/cron/expire-transactions', expireTransactionsHandler);
-app.use('/api/cron/expire-points', expirePointsHandler);
-app.use('/api/cron/cancel-pending-confirmations', cancelPendingConfirmationsHandler);
+// --- Dokumentasi API (Swagger) ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// --- Middleware Penangan Error ---
+// --- Penanganan Error ---
 app.use(errorMiddleware);
 
-// Jalankan Server
-app.listen(port, () => {
-  console.log(`⚡️ Server berjalan di http://localhost:${port}`);
+// --- Jalankan Server ---
+app.listen(PORT, () => {
+  console.log(`⚡️ Server berjalan di http://localhost:${PORT}`);
 });
+
+export default app;
