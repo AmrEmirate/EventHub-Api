@@ -9,6 +9,7 @@ import {
     getMyOrganizerEventsController // Impor controller baru
 } from './events.controller';
 import { authMiddleware } from '../../middlewares/auth.middleware';
+import { upload } from '../../middlewares/upload.middleware'; // Impor middleware upload
 
 const router = Router();
 
@@ -23,8 +24,8 @@ router.get('/organizer/my-events', authMiddleware, getMyOrganizerEventsControlle
 router.get('/:slug', getEventBySlugController);
 
 // Rute Terproteksi (memerlukan login)
-router.post('/', authMiddleware, createEventController);
-router.put('/:id', authMiddleware, updateEventController);
+router.post('/', authMiddleware, upload.single('imageUrl'), createEventController);
+router.put('/:id', authMiddleware, upload.single('imageUrl'), updateEventController);
 router.delete('/:id', authMiddleware, deleteEventController);
 router.get('/:id/attendees', authMiddleware, getEventAttendeesController);
 

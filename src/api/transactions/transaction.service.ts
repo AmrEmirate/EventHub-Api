@@ -1,7 +1,7 @@
 import prisma from '../../config/prisma';
 import { sendTransactionStatusEmail } from '../../utils/mailer';
 import { Prisma } from '@prisma/client';
-// [BARU] Impor service notifikasi yang sudah kita buat
+// Impor service notifikasi
 import { createNotification } from '../notifications/notification.service';
 
 export const createTransaction = async (
@@ -73,6 +73,8 @@ export const createTransaction = async (
         pointsUsed,
         paymentDeadline,
         voucherId: usedVoucherId,
+        // [MODIFIKASI] Otomatis selesaikan transaksi jika event gratis
+        status: event.isFree ? 'COMPLETED' : 'PENDING_PAYMENT',
       },
     });
 
@@ -87,6 +89,15 @@ export const createTransaction = async (
       where: { id: eventId },
       data: { ticketSold: { increment: quantity } },
     });
+    
+    // [BARU] Kirim notifikasi jika event gratis berhasil "dipesan"
+    if (event.isFree) {
+        await createNotification(
+            userId,
+            `Anda berhasil mendapatkan tiket untuk event gratis "${event.name}"! E-tiket Anda sudah tersedia.`
+        );
+    }
+
 
     return transaction;
   });
@@ -152,7 +163,6 @@ export const approveTransaction = async (organizerId: string, transactionId: str
     `Pembayaran Anda untuk event "${transaction.event.name}" telah berhasil dikonfirmasi.`
   );
   
-  // [NOTIFIKASI] Buat notifikasi untuk pengguna
   await createNotification(
     transaction.userId,
     `Pembayaran untuk event "${transaction.event.name}" telah dikonfirmasi! E-tiket Anda sekarang tersedia.`
@@ -185,7 +195,6 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
     `Mohon maaf, pembayaran Anda untuk event "${transaction.event.name}" ditolak. Poin atau voucher yang digunakan telah dikembalikan.`
   );
 
-  // [NOTIFIKASI] Buat notifikasi untuk pengguna
   await createNotification(
     transaction.userId,
     `Pembayaran untuk event "${transaction.event.name}" ditolak. Poin dan voucher Anda telah dikembalikan.`

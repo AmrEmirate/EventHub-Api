@@ -78,6 +78,7 @@ model Event {
   isFree        Boolean  @default(false)
   ticketTotal   Int
   ticketSold    Int      @default(0)
+  imageUrl      String? 
   organizerId   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

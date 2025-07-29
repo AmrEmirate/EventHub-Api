@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as eventService from './events.service';
-import { UserRole } from '@prisma/client';
+import { Event, UserRole } from '@prisma/client';
 import { z } from 'zod';
 
 // Skema dasar event
@@ -11,9 +11,9 @@ const rawEventSchema = z.object({
   location: z.string().min(1, { message: "Lokasi wajib diisi" }),
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
-  isFree: z.boolean().default(false),
-  ticketTotal: z.number().int().positive({ message: "Jumlah tiket harus angka positif" }),
-  price: z.number().optional(),
+  isFree: z.preprocess((val) => val === 'true' || val === true, z.boolean().default(false)),
+  ticketTotal: z.preprocess((val) => Number(val), z.number().int().positive({ message: "Jumlah tiket harus angka positif" })),
+  price: z.preprocess((val) => Number(val), z.number().optional()),
 });
 
 // Skema untuk membuat event
@@ -32,9 +32,8 @@ const createEventSchema = rawEventSchema.refine(data => {
   return { ...data, price: data.price! };
 });
 
-// [PERBAIKAN] Skema untuk update event disempurnakan
+// Skema untuk update event
 const updateEventSchema = rawEventSchema.partial().refine(data => {
-    // Jika isFree di-set false secara eksplisit, maka price harus ada dan lebih besar dari 0
     if (data.isFree === false && (data.price === undefined || data.price <= 0)) {
         return false;
     }
@@ -43,7 +42,6 @@ const updateEventSchema = rawEventSchema.partial().refine(data => {
     message: "Harga wajib diisi dan harus lebih dari 0 jika event diubah menjadi berbayar",
     path: ["price"],
 }).transform(data => {
-    // Jika isFree di-set true, paksa harga menjadi 0
     if (data.isFree === true) {
         return { ...data, price: 0 };
     }
@@ -77,7 +75,11 @@ export const createEventController = async (req: Request, res: Response) => {
     }
     try {
         const validatedData = createEventSchema.parse(req.body);
-        const eventData = { ...validatedData, organizerId: req.user.id };
+        
+        // [PERBAIKAN] Ubah `undefined` menjadi `null` agar sesuai dengan skema Prisma
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const eventData = { ...validatedData, organizerId: req.user.id, imageUrl };
         const newEvent = await eventService.createEvent(eventData);
         res.status(201).json({ message: 'Event berhasil dibuat', data: newEvent });
     } catch (error: any) {
@@ -94,7 +96,14 @@ export const updateEventController = async (req: Request, res: Response) => {
     }
     try {
         const validatedData = updateEventSchema.parse(req.body);
-        const updatedEvent = await eventService.updateEvent(req.params.id, req.user.id, validatedData);
+
+        const dataToUpdate: Partial<Event> = { ...validatedData };
+        
+        if (req.file) {
+            dataToUpdate.imageUrl = `/uploads/${req.file.filename}`;
+        }
+
+        const updatedEvent = await eventService.updateEvent(req.params.id, req.user.id, dataToUpdate);
         res.status(200).json({ message: 'Event berhasil diperbarui', data: updatedEvent });
     } catch (error: any) {
         if (error instanceof z.ZodError) {
