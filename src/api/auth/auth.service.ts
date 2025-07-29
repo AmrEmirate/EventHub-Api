@@ -6,7 +6,6 @@ import { User } from '@prisma/client';
 
 import { addPointsToUser } from '../users/user.service';
 import { createVoucherForNewUser } from '../vouchers/voucher.service';
-// [BARU] Impor service notifikasi
 import { createNotification } from '../notifications/notification.service';
 
 
@@ -36,12 +35,11 @@ export const registerUser = async (data: RegisterInput) => {
     
     if (referrer) {
       referredById = referrer.id;
-      await addPointsToUser(referrer.id, 15000);
+      await addPointsToUser(referrer.id, 10000); // Sesuai permintaan, 10.000 poin
 
-      // [NOTIFIKASI] Buat notifikasi untuk pemilik kode referral
       await createNotification(
           referrer.id,
-          `Selamat! Seseorang telah menggunakan kode referral Anda. Anda mendapatkan 15,000 poin.`
+          `Selamat! Seseorang telah menggunakan kode referral Anda. Anda mendapatkan 10,000 poin.`
       );
     }
   }
@@ -59,12 +57,13 @@ export const registerUser = async (data: RegisterInput) => {
     },
   });
 
+  // [PERBAIKAN] Pastikan kupon dibuat jika referral berhasil
   if (referredById) {
-    await createVoucherForNewUser(user.id);
+    await createVoucherForNewUser(user.id); // Teruskan user.id yang baru dibuat
   }
 
   const token = generateSecureToken();
-  const expires = new Date(new Date().getTime() + 3600 * 1000); // 1 jam
+  const expires = new Date(new Date().getTime() + 3600 * 1000);
 
   await prisma.verificationToken.create({
     data: { userId: user.id, token, expires },

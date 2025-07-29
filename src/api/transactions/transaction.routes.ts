@@ -9,7 +9,13 @@ const router = Router();
 router.post('/', authMiddleware, controller.createTransactionController);
 router.get('/me', authMiddleware, controller.getMyTransactionsController);
 
-// [RUTE BARU] Rute untuk mendapatkan detail satu transaksi
+// --- Rute untuk Penyelenggara (Organizer) ---
+// [PERBAIKAN] Pindahkan rute statis ini ke ATAS rute dinamis '/:id'
+router.get('/organizer', authMiddleware, controller.getOrganizerTransactionsController);
+router.post('/organizer/:id/approve', authMiddleware, controller.approveTransactionController);
+router.post('/organizer/:id/reject', authMiddleware, controller.rejectTransactionController);
+
+// [PERBAIKAN] Rute dinamis '/:id' sekarang berada di bawah rute yang lebih spesifik
 router.get('/:id', authMiddleware, controller.getTransactionByIdController);
 
 router.post(
@@ -19,11 +25,5 @@ router.post(
   controller.uploadPaymentProofController
 );
 router.post('/:id/cancel', authMiddleware, controller.cancelTransactionController);
-
-
-// --- Rute untuk Penyelenggara (Organizer) ---
-router.get('/organizer', authMiddleware, controller.getOrganizerTransactionsController);
-router.post('/organizer/:id/approve', authMiddleware, controller.approveTransactionController);
-router.post('/organizer/:id/reject', authMiddleware, controller.rejectTransactionController);
 
 export default router;
