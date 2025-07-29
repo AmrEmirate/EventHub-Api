@@ -59,6 +59,7 @@ export const getEventBySlug = async (slug: string) => {
           id: true,
           rating: true,
           comment: true,
+          imageUrl: true, // <-- [PERBAIKAN] Pastikan baris ini ada
           createdAt: true,
           user: {
             select: {
