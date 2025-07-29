@@ -1,7 +1,6 @@
 import prisma from '../../config/prisma';
 import { sendTransactionStatusEmail } from '../../utils/mailer';
 import { Prisma } from '@prisma/client';
-// Impor service notifikasi
 import { createNotification } from '../notifications/notification.service';
 
 export const createTransaction = async (
@@ -73,7 +72,6 @@ export const createTransaction = async (
         pointsUsed,
         paymentDeadline,
         voucherId: usedVoucherId,
-        // [MODIFIKASI] Otomatis selesaikan transaksi jika event gratis
         status: event.isFree ? 'COMPLETED' : 'PENDING_PAYMENT',
       },
     });
@@ -90,14 +88,12 @@ export const createTransaction = async (
       data: { ticketSold: { increment: quantity } },
     });
     
-    // [BARU] Kirim notifikasi jika event gratis berhasil "dipesan"
     if (event.isFree) {
         await createNotification(
             userId,
             `Anda berhasil mendapatkan tiket untuk event gratis "${event.name}"! E-tiket Anda sudah tersedia.`
         );
     }
-
 
     return transaction;
   });
@@ -122,11 +118,23 @@ export const uploadPaymentProof = async (userId: string, transactionId: string, 
   });
 };
 
+/**
+ * [PERBAIKAN] Tambahkan `endDate` pada data event yang diambil.
+ * Ini penting agar frontend tahu kapan event sudah selesai dan bisa diberi ulasan.
+ */
 export const getTransactionsByUserId = async (userId: string) => {
   return prisma.transaction.findMany({
     where: { userId: userId },
     include: {
-      event: { select: { name: true, slug: true, startDate: true } }
+      event: { 
+        select: { 
+          id: true, // Tambahkan id untuk key
+          name: true, 
+          slug: true, 
+          startDate: true, 
+          endDate: true // <-- Tambahkan baris ini
+        } 
+      }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -236,7 +244,11 @@ export const getTransactionById = async (userId: string, transactionId: string) 
   const transaction = await prisma.transaction.findFirst({
     where: {
       id: transactionId,
-      userId: userId,
+      // Izinkan organizer juga untuk melihat detail transaksi event mereka
+      OR: [
+        { userId: userId },
+        { event: { organizerId: userId } }
+      ]
     },
     include: {
       user: {

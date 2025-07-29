@@ -3,11 +3,9 @@ import { hashPassword } from '../../utils/password.helper';
 import { generateSecureToken } from '../../utils/token.helper';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/mailer';
 import { User } from '@prisma/client';
-
 import { addPointsToUser } from '../users/user.service';
 import { createVoucherForNewUser } from '../vouchers/voucher.service';
 import { createNotification } from '../notifications/notification.service';
-
 
 type RegisterInput = {
   email: string;
@@ -35,7 +33,8 @@ export const registerUser = async (data: RegisterInput) => {
     
     if (referrer) {
       referredById = referrer.id;
-      await addPointsToUser(referrer.id, 10000); // Sesuai permintaan, 10.000 poin
+      // [PERBAIKAN] Ubah poin referral menjadi 10.000
+      await addPointsToUser(referrer.id, 10000); 
 
       await createNotification(
           referrer.id,
@@ -56,10 +55,9 @@ export const registerUser = async (data: RegisterInput) => {
       referredById: referredById,
     },
   });
-
-  // [PERBAIKAN] Pastikan kupon dibuat jika referral berhasil
+  
   if (referredById) {
-    await createVoucherForNewUser(user.id); // Teruskan user.id yang baru dibuat
+    await createVoucherForNewUser(user.id);
   }
 
   const token = generateSecureToken();
@@ -72,7 +70,6 @@ export const registerUser = async (data: RegisterInput) => {
   await sendVerificationEmail(user.email, token);
   return { message: "Registrasi berhasil! Cek email Anda untuk verifikasi." };
 };
-
 
 export const verifyEmail = async (token: string) => {
     const existingToken = await prisma.verificationToken.findUnique({ where: { token } });
