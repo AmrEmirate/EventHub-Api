@@ -1,15 +1,31 @@
 import prisma from '../../config/prisma';
 
-export const getOrganizerStats = async (organizerId: string) => {
-  // ... (existing code, no changes here)
+export const getOrganizerStats = async (organizerId: string, month: number, year: number) => {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
   const totalRevenue = await prisma.transaction.aggregate({
     _sum: { finalPrice: true },
-    where: { event: { organizerId }, status: 'COMPLETED' },
+    where: {
+      event: { organizerId },
+      status: 'COMPLETED',
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
   });
 
   const totalTicketsSold = await prisma.transaction.aggregate({
     _sum: { quantity: true },
-    where: { event: { organizerId }, status: 'COMPLETED' },
+    where: {
+      event: { organizerId },
+      status: 'COMPLETED',
+      createdAt: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
   });
 
   const eventCount = await prisma.event.count({
@@ -23,20 +39,18 @@ export const getOrganizerStats = async (organizerId: string) => {
   };
 };
 
-export const getOrganizerAnalytics = async (organizerId: string) => {
-  // ... (existing code, no changes here)
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export const getOrganizerAnalytics = async (organizerId: string, month: number, year: number) => {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
 
   const revenuePerDay = await prisma.transaction.groupBy({
     by: ['createdAt'],
     where: {
-      event: {
-        organizerId: organizerId,
-      },
+      event: { organizerId },
       status: 'COMPLETED',
       createdAt: {
-        gte: thirtyDaysAgo,
+        gte: startDate,
+        lte: endDate,
       },
     },
     _sum: {
@@ -55,8 +69,14 @@ export const getOrganizerAnalytics = async (organizerId: string) => {
   const ticketsPerEvent = await prisma.event.findMany({
     where: {
       organizerId: organizerId,
-      ticketSold: {
-        gt: 0,
+      transactions: {
+        some: {
+          status: 'COMPLETED',
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
       },
     },
     select: {
@@ -80,10 +100,9 @@ export const getOrganizerAnalytics = async (organizerId: string) => {
   };
 };
 
-// [NEW] Add this new function to combine the data
-export const getOrganizerDashboardData = async (organizerId: string) => {
-  const stats = await getOrganizerStats(organizerId);
-  const analytics = await getOrganizerAnalytics(organizerId);
+export const getOrganizerDashboardData = async (organizerId: string, month: number, year: number) => {
+  const stats = await getOrganizerStats(organizerId, month, year);
+  const analytics = await getOrganizerAnalytics(organizerId, month, year);
 
   return {
     stats,

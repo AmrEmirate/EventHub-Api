@@ -1,14 +1,11 @@
 import { Router } from 'express';
-// Import the new controller
-import { getStatsController, getAnalyticsController, getOrganizerDashboardController } from './dashboard.controller';
+// [PERBAIKAN] Impor hanya satu controller yang ada
+import { getOrganizerDashboardController } from './dashboard.controller';
 import { authMiddleware } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-// [NEW] Route to get all dashboard data at once
+// [PERBAIKAN] Gunakan hanya satu rute untuk mengambil semua data dasbor
 router.get('/', authMiddleware, getOrganizerDashboardController);
-
-router.get('/stats', authMiddleware, getStatsController);
-router.get('/analytics', authMiddleware, getAnalyticsController);
 
 export default router;

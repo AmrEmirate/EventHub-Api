@@ -59,7 +59,7 @@ export const getEventBySlug = async (slug: string) => {
           id: true,
           rating: true,
           comment: true,
-          imageUrl: true, // <-- [PERBAIKAN] Pastikan baris ini ada
+          imageUrl: true,
           createdAt: true,
           user: {
             select: {
@@ -99,11 +99,36 @@ export const updateEvent = async (eventId: string, userId: string, data: Partial
 };
 
 export const deleteEvent = async (eventId: string, userId: string) => {
-  const event = await prisma.event.findFirst({ where: { id: eventId, organizerId: userId } });
+  const event = await prisma.event.findFirst({
+    where: { id: eventId, organizerId: userId },
+  });
+
   if (!event) {
     throw new Error('Event tidak ditemukan atau Anda tidak punya akses.');
   }
-  return prisma.event.delete({ where: { id: eventId } });
+
+  // Gunakan transaksi Prisma untuk menghapus data terkait terlebih dahulu
+  return prisma.$transaction(async (tx) => {
+    // 1. Hapus semua ulasan yang terkait dengan event ini
+    await tx.review.deleteMany({
+      where: { eventId: eventId },
+    });
+
+    // 2. Hapus semua voucher yang terkait dengan event ini
+    await tx.voucher.deleteMany({
+      where: { eventId: eventId },
+    });
+
+    // 3. Hapus semua transaksi yang terkait dengan event ini
+    await tx.transaction.deleteMany({
+      where: { eventId: eventId },
+    });
+
+    // 4. Setelah semua data terkait dihapus, baru hapus event itu sendiri
+    await tx.event.delete({
+      where: { id: eventId },
+    });
+  });
 };
 
 export const getEventAttendees = async (organizerId: string, eventId: string) => {

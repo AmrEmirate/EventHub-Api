@@ -118,10 +118,6 @@ export const uploadPaymentProof = async (userId: string, transactionId: string, 
   });
 };
 
-/**
- * [PERBAIKAN] Tambahkan `endDate` pada data event yang diambil.
- * Ini penting agar frontend tahu kapan event sudah selesai dan bisa diberi ulasan.
- */
 export const getTransactionsByUserId = async (userId: string) => {
   return prisma.transaction.findMany({
     where: { userId: userId },
@@ -132,7 +128,7 @@ export const getTransactionsByUserId = async (userId: string) => {
           name: true, 
           slug: true, 
           startDate: true, 
-          endDate: true // <-- Pastikan baris ini ada
+          endDate: true
         } 
       }
     },
@@ -208,17 +204,34 @@ export const rejectTransaction = async (organizerId: string, transactionId: stri
     `Pembayaran untuk event "${transaction.event.name}" ditolak. Poin dan voucher Anda telah dikembalikan.`
   );
 
-  const dbOperations: Prisma.PrismaPromise<any>[] = [];
-  dbOperations.push(prisma.event.update({ where: { id: transaction.eventId }, data: { ticketSold: { decrement: transaction.quantity } } }));
-  dbOperations.push(prisma.transaction.update({ where: { id: transactionId }, data: { status: 'REJECTED' } }));
-  if (transaction.pointsUsed > 0) {
-    dbOperations.push(prisma.user.update({ where: { id: transaction.userId }, data: { points: { increment: transaction.pointsUsed } } }));
-  }
-  if (transaction.voucherId) {
-    dbOperations.push(prisma.voucher.update({ where: { id: transaction.voucherId }, data: { isUsed: false } }));
-  }
-  
-  return prisma.$transaction(dbOperations);
+  return prisma.$transaction(async (tx) => {
+      // [PERBAIKAN] Cek apakah tiket sudah dianggap terjual (bukan PENDING_PAYMENT) sebelum mengurangi stok
+      if (transaction.status !== 'PENDING_PAYMENT') {
+        await tx.event.update({
+            where: { id: transaction.eventId },
+            data: { ticketSold: { decrement: transaction.quantity } },
+        });
+      }
+
+      if (transaction.pointsUsed > 0) {
+          await tx.user.update({
+              where: { id: transaction.userId },
+              data: { points: { increment: transaction.pointsUsed } },
+          });
+      }
+
+      if (transaction.voucherId) {
+          await tx.voucher.update({
+              where: { id: transaction.voucherId },
+              data: { isUsed: false },
+          });
+      }
+
+      return await tx.transaction.update({
+          where: { id: transactionId },
+          data: { status: 'REJECTED' },
+      });
+  });
 };
 
 export const cancelTransaction = async (userId: string, transactionId:string) => {
@@ -229,7 +242,11 @@ export const cancelTransaction = async (userId: string, transactionId:string) =>
     if (transaction.status !== 'PENDING_PAYMENT') throw new Error('Hanya transaksi yang menunggu pembayaran yang bisa dibatalkan.');
     
     return prisma.$transaction(async (tx) => {
-        await tx.event.update({ where: { id: transaction.eventId }, data: { ticketSold: { decrement: transaction.quantity } } });
+        // [PERBAIKAN] Cek apakah tiket sudah dianggap terjual (bukan PENDING_PAYMENT) sebelum mengurangi stok
+        if (transaction.status !== 'PENDING_PAYMENT') {
+            await tx.event.update({ where: { id: transaction.eventId }, data: { ticketSold: { decrement: transaction.quantity } } });
+        }
+
         if (transaction.pointsUsed > 0) {
             await tx.user.update({ where: { id: transaction.userId }, data: { points: { increment: transaction.pointsUsed } } });
         }
