@@ -2,7 +2,7 @@ import request from "supertest";
 import express, { Request, Response, NextFunction } from "express";
 import userRoutes from "../src/routers/user.routes";
 import { errorMiddleware } from "../src/middleware/error.middleware";
-import { changeUserPassword } from "../src/service/user.service";
+import { UserService } from "../src/service/user.service";
 
 // Mock service layer untuk menghindari panggilan database aktual
 jest.mock("../src/service/user.service");
@@ -22,6 +22,8 @@ jest.mock("../src/middleware/auth.middleware", () => ({
   },
 }));
 
+const MockedUserService = UserService as jest.MockedClass<typeof UserService>;
+
 const app = express();
 app.use(express.json());
 app.use("/api/v1/users", userRoutes);
@@ -29,14 +31,12 @@ app.use(errorMiddleware);
 
 describe("User Endpoints", () => {
   describe("PUT /api/v1/users/me/change-password", () => {
-    const mockChangeUserPassword = changeUserPassword as jest.MockedFunction<
-      typeof changeUserPassword
-    >;
-
     it("should successfully change user password", async () => {
-      mockChangeUserPassword.mockResolvedValueOnce({
-        message: "Password berhasil diperbarui.",
-      });
+      MockedUserService.prototype.changeUserPassword = jest
+        .fn()
+        .mockResolvedValueOnce({
+          message: "Password berhasil diperbarui.",
+        });
 
       const res = await request(app)
         .put("/api/v1/users/me/change-password")
@@ -50,7 +50,9 @@ describe("User Endpoints", () => {
         "message",
         "Password berhasil diperbarui."
       );
-      expect(mockChangeUserPassword).toHaveBeenCalledWith(
+      expect(
+        MockedUserService.prototype.changeUserPassword
+      ).toHaveBeenCalledWith(
         "user-test-id",
         "oldpassword123",
         "newpassword123"
@@ -58,9 +60,9 @@ describe("User Endpoints", () => {
     });
 
     it("should return 400 if old password is not valid", async () => {
-      mockChangeUserPassword.mockRejectedValueOnce(
-        new Error("Password lama tidak sesuai.")
-      );
+      MockedUserService.prototype.changeUserPassword = jest
+        .fn()
+        .mockRejectedValueOnce(new Error("Password lama tidak sesuai."));
 
       const res = await request(app)
         .put("/api/v1/users/me/change-password")

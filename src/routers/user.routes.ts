@@ -1,26 +1,45 @@
 import { Router } from "express";
-import {
-  getMeController,
-  updateMeController,
-  changePasswordController,
-  updateMyAvatarController,
-} from "../controllers/user.controller";
+import { UserController } from "../controllers/user.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { upload } from "../middleware/upload.middleware";
 
-const router = Router();
+class UserRouter {
+  public router: Router;
+  private userController: UserController;
 
-router.get("/me", authMiddleware, getMeController);
-router.put("/me", authMiddleware, updateMeController);
-router.put("/me/change-password", authMiddleware, changePasswordController);
+  constructor() {
+    this.router = Router();
+    this.userController = new UserController();
+    this.initializeRoutes();
+  }
 
-// [RUTE BARU] Rute untuk upload avatar
-// Gunakan middleware `upload.single('avatar')` untuk menangani satu file dari field bernama 'avatar'
-router.put(
-  "/me/avatar",
-  authMiddleware,
-  upload.single("avatar"),
-  updateMyAvatarController
-);
+  private initializeRoutes(): void {
+    this.router.get(
+      "/me",
+      authMiddleware,
+      this.userController.getMe.bind(this.userController)
+    );
 
-export default router;
+    this.router.put(
+      "/me",
+      authMiddleware,
+      this.userController.updateMe.bind(this.userController)
+    );
+
+    this.router.put(
+      "/me/change-password",
+      authMiddleware,
+      this.userController.changePassword.bind(this.userController)
+    );
+
+    // [RUTE BARU] Rute untuk upload avatar
+    this.router.put(
+      "/me/avatar",
+      authMiddleware,
+      upload.single("avatar"),
+      this.userController.updateMyAvatar.bind(this.userController)
+    );
+  }
+}
+
+export default new UserRouter().router;

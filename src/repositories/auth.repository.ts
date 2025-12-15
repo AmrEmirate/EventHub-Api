@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, VerificationToken, PasswordResetToken } from "@prisma/client";
 
-export class AuthRepository {
+class AuthRepository {
   private getClient(tx?: Prisma.TransactionClient) {
     return tx || prisma;
   }
@@ -66,3 +66,5 @@ export class AuthRepository {
     });
   }
 }
+
+export { AuthRepository };

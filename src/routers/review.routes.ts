@@ -1,16 +1,27 @@
 import { Router } from "express";
-import { createReviewController } from "../controllers/review.controller";
+import { ReviewController } from "../controllers/review.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { upload } from "../middleware/upload.middleware"; // Impor middleware upload
 
-const router = Router();
+class ReviewRouter {
+  public router: Router;
+  private reviewController: ReviewController;
 
-// Tambahkan middleware upload untuk menangani file 'imageUrl'
-router.post(
-  "/",
-  authMiddleware,
-  upload.single("imageUrl"),
-  createReviewController
-);
+  constructor() {
+    this.router = Router();
+    this.reviewController = new ReviewController();
+    this.initializeRoutes();
+  }
 
-export default router;
+  private initializeRoutes(): void {
+    // Tambahkan middleware upload untuk menangani file 'imageUrl'
+    this.router.post(
+      "/",
+      authMiddleware,
+      upload.single("imageUrl"),
+      this.reviewController.createReview.bind(this.reviewController)
+    );
+  }
+}
+
+export default new ReviewRouter().router;

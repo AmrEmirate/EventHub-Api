@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, User } from "@prisma/client";
 
-export class UserRepository {
+class UserRepository {
   private getClient(tx?: Prisma.TransactionClient) {
     return tx || prisma;
   }
@@ -79,3 +79,5 @@ export class UserRepository {
     });
   }
 }
+
+export { UserRepository };

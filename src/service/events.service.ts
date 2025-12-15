@@ -2,130 +2,141 @@ import { EventRepository } from "../repositories/event.repository";
 import { TransactionRepository } from "../repositories/transaction.repository";
 import { Event } from "@prisma/client";
 
-const eventRepository = new EventRepository();
-const transactionRepository = new TransactionRepository();
-
 type CreateEventInput = Omit<
   Event,
   "id" | "slug" | "ticketSold" | "createdAt" | "updatedAt"
 >;
 
-export const getAllEvents = async (filters: {
-  search?: string;
-  location?: string;
-  category?: string;
-  startDate?: string;
-  endDate?: string;
-}) => {
-  const { search, location, category, startDate, endDate } = filters;
+class EventService {
+  private eventRepository: EventRepository;
+  private transactionRepository: TransactionRepository;
 
-  const whereClause: any = {};
-  const andConditions = [];
-
-  if (search) {
-    andConditions.push({ name: { contains: search, mode: "insensitive" } });
-  }
-  if (location) {
-    andConditions.push({ location: { equals: location, mode: "insensitive" } });
-  }
-  if (category) {
-    andConditions.push({ category: { equals: category, mode: "insensitive" } });
+  constructor() {
+    this.eventRepository = new EventRepository();
+    this.transactionRepository = new TransactionRepository();
   }
 
-  if (startDate && endDate) {
-    andConditions.push({
-      startDate: { gte: new Date(startDate) },
-      endDate: { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) },
+  public async getAllEvents(filters: {
+    search?: string;
+    location?: string;
+    category?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const { search, location, category, startDate, endDate } = filters;
+
+    const whereClause: any = {};
+    const andConditions = [];
+
+    if (search) {
+      andConditions.push({ name: { contains: search, mode: "insensitive" } });
+    }
+    if (location) {
+      andConditions.push({
+        location: { equals: location, mode: "insensitive" },
+      });
+    }
+    if (category) {
+      andConditions.push({
+        category: { equals: category, mode: "insensitive" },
+      });
+    }
+
+    if (startDate && endDate) {
+      andConditions.push({
+        startDate: { gte: new Date(startDate) },
+        endDate: { lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) },
+      });
+    } else if (startDate) {
+      andConditions.push({ startDate: { gte: new Date(startDate) } });
+    } else {
+      andConditions.push({ startDate: { gte: new Date() } });
+    }
+
+    if (andConditions.length > 0) {
+      whereClause.AND = andConditions;
+    }
+
+    return this.eventRepository.findMany({
+      where: whereClause,
+      orderBy: { startDate: "asc" },
     });
-  } else if (startDate) {
-    andConditions.push({ startDate: { gte: new Date(startDate) } });
-  } else {
-    andConditions.push({ startDate: { gte: new Date() } });
   }
 
-  if (andConditions.length > 0) {
-    whereClause.AND = andConditions;
+  public async getEventById(id: string) {
+    return this.eventRepository.findById(id);
   }
 
-  return eventRepository.findMany({
-    where: whereClause,
-    orderBy: { startDate: "asc" },
-  });
-};
-
-export const getEventById = async (id: string) => {
-  return eventRepository.findById(id);
-};
-
-export const getEventBySlug = async (slug: string) => {
-  return eventRepository.findBySlugWithReviews(slug);
-};
-
-export const createEvent = async (data: CreateEventInput): Promise<Event> => {
-  const slug = data.name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
-  return eventRepository.create({
-    ...data,
-    slug,
-  });
-};
-
-export const updateEvent = async (
-  eventId: string,
-  userId: string,
-  data: Partial<Event>
-) => {
-  const event = await eventRepository.findFirst({
-    where: { id: eventId, organizerId: userId },
-  });
-  if (!event) {
-    throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
-  }
-  return eventRepository.update(eventId, data);
-};
-
-export const deleteEvent = async (eventId: string, userId: string) => {
-  const event = await eventRepository.findFirst({
-    where: { id: eventId, organizerId: userId },
-  });
-
-  if (!event) {
-    throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
+  public async getEventBySlug(slug: string) {
+    return this.eventRepository.findBySlugWithReviews(slug);
   }
 
-  // Gunakan repository untuk handling delete dependencies
-  return eventRepository.deleteWithDependencies(eventId);
-};
+  public async createEvent(data: CreateEventInput): Promise<Event> {
+    const slug =
+      data.name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
+    return this.eventRepository.create({
+      ...data,
+      slug,
+    });
+  }
 
-export const getEventAttendees = async (
-  organizerId: string,
-  eventId: string
-) => {
-  const event = await eventRepository.findFirst({
-    where: { id: eventId, organizerId },
-  });
-  if (!event)
-    throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
+  public async updateEvent(
+    eventId: string,
+    userId: string,
+    data: Partial<Event>
+  ) {
+    const event = await this.eventRepository.findFirst({
+      where: { id: eventId, organizerId: userId },
+    });
+    if (!event) {
+      throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
+    }
+    return this.eventRepository.update(eventId, data);
+  }
 
-  const transactions = await transactionRepository.findMany({
-    where: { eventId, status: "COMPLETED" },
-    select: {
-      user: {
-        select: { name: true, email: true },
+  public async deleteEvent(eventId: string, userId: string) {
+    const event = await this.eventRepository.findFirst({
+      where: { id: eventId, organizerId: userId },
+    });
+
+    if (!event) {
+      throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
+    }
+
+    // Gunakan repository untuk handling delete dependencies
+    return this.eventRepository.deleteWithDependencies(eventId);
+  }
+
+  public async getEventAttendees(organizerId: string, eventId: string) {
+    const event = await this.eventRepository.findFirst({
+      where: { id: eventId, organizerId },
+    });
+    if (!event)
+      throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
+
+    const transactions = await this.transactionRepository.findMany({
+      where: { eventId, status: "COMPLETED" },
+      select: {
+        user: {
+          select: { name: true, email: true },
+        },
+        quantity: true,
+        createdAt: true,
       },
-      quantity: true,
-      createdAt: true,
-    },
-  });
-  return transactions;
-};
+    });
+    return transactions;
+  }
 
-export const getMyOrganizerEvents = async (organizerId: string) => {
-  return eventRepository.findMany({
-    where: {
-      organizerId: organizerId,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-};
+  public async getMyOrganizerEvents(organizerId: string) {
+    return this.eventRepository.findMany({
+      where: {
+        organizerId: organizerId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+}
+
+export { EventService };

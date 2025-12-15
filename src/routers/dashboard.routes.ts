@@ -1,11 +1,27 @@
 import { Router } from "express";
-// [PERBAIKAN] Impor hanya satu controller yang ada
-import { getOrganizerDashboardController } from "../controllers/dashboard.controller";
+import { DashboardController } from "../controllers/dashboard.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
-const router = Router();
+class DashboardRouter {
+  public router: Router;
+  private dashboardController: DashboardController;
 
-// [PERBAIKAN] Gunakan hanya satu rute untuk mengambil semua data dasbor
-router.get("/", authMiddleware, getOrganizerDashboardController);
+  constructor() {
+    this.router = Router();
+    this.dashboardController = new DashboardController();
+    this.initializeRoutes();
+  }
 
-export default router;
+  private initializeRoutes(): void {
+    // [PERBAIKAN] Gunakan hanya satu rute untuk mengambil semua data dasbor
+    this.router.get(
+      "/",
+      authMiddleware,
+      this.dashboardController.getOrganizerDashboard.bind(
+        this.dashboardController
+      )
+    );
+  }
+}
+
+export default new DashboardRouter().router;

@@ -1,39 +1,47 @@
 import { NotificationRepository } from "../repositories/notification.repository";
 
-const notificationRepository = new NotificationRepository();
+class NotificationService {
+  private notificationRepository: NotificationRepository;
 
-/**
- * Membuat notifikasi baru untuk pengguna.
- */
-export const createNotification = async (userId: string, message: string) => {
-  return notificationRepository.create({
-    userId,
-    message,
-  });
-};
+  constructor() {
+    this.notificationRepository = new NotificationRepository();
+  }
 
-/**
- * Mengambil notifikasi untuk pengguna tertentu.
- */
-export const getNotificationsByUserId = async (userId: string) => {
-  return notificationRepository.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 20, // Batasi untuk mengambil 20 notifikasi terbaru
-  });
-};
-
-/**
- * Menandai semua notifikasi pengguna yang belum dibaca menjadi sudah dibaca.
- */
-export const markNotificationsAsRead = async (userId: string) => {
-  return notificationRepository.updateMany({
-    where: {
+  /**
+   * Membuat notifikasi baru untuk pengguna.
+   */
+  public async createNotification(userId: string, message: string) {
+    return this.notificationRepository.create({
       userId,
-      isRead: false,
-    },
-    data: {
-      isRead: true,
-    },
-  });
-};
+      message,
+    });
+  }
+
+  /**
+   * Mengambil notifikasi untuk pengguna tertentu.
+   */
+  public async getNotificationsByUserId(userId: string) {
+    return this.notificationRepository.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 20, // Batasi untuk mengambil 20 notifikasi terbaru
+    });
+  }
+
+  /**
+   * Menandai semua notifikasi pengguna yang belum dibaca menjadi sudah dibaca.
+   */
+  public async markNotificationsAsRead(userId: string) {
+    return this.notificationRepository.updateMany({
+      where: {
+        userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+      },
+    });
+  }
+}
+
+export { NotificationService };

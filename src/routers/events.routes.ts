@@ -1,49 +1,69 @@
 import { Router } from "express";
-import {
-  getAllEventsController,
-  getEventBySlugController,
-  getEventByIdController, // Impor controller baru
-  createEventController,
-  updateEventController,
-  deleteEventController,
-  getEventAttendeesController,
-  getMyOrganizerEventsController,
-} from "../controllers/events.controller";
+import { EventController } from "../controllers/events.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { upload } from "../middleware/upload.middleware";
 
-const router = Router();
+class EventRouter {
+  public router: Router;
+  private eventController: EventController;
 
-// Rute Publik
-router.get("/", getAllEventsController);
+  constructor() {
+    this.router = Router();
+    this.eventController = new EventController();
+    this.initializeRoutes();
+  }
 
-// Rute Terproteksi
-router.get(
-  "/organizer/my-events",
-  authMiddleware,
-  getMyOrganizerEventsController
-);
+  private initializeRoutes(): void {
+    // Rute Publik
+    this.router.get(
+      "/",
+      this.eventController.getAllEvents.bind(this.eventController)
+    );
 
-// Rute baru untuk mengambil event berdasarkan ID (untuk halaman edit)
-// Tempatkan sebelum rute slug agar tidak terjadi konflik
-router.get("/id/:id", authMiddleware, getEventByIdController);
+    // Rute Terproteksi
+    this.router.get(
+      "/organizer/my-events",
+      authMiddleware,
+      this.eventController.getMyOrganizerEvents.bind(this.eventController)
+    );
 
-// Rute dinamis untuk slug (untuk halaman detail publik)
-router.get("/:slug", getEventBySlugController);
+    // Rute baru untuk mengambil event berdasarkan ID (untuk halaman edit)
+    // Tempatkan sebelum rute slug agar tidak terjadi konflik
+    this.router.get(
+      "/id/:id",
+      authMiddleware,
+      this.eventController.getEventById.bind(this.eventController)
+    );
 
-router.post(
-  "/",
-  authMiddleware,
-  upload.single("imageUrl"),
-  createEventController
-);
-router.put(
-  "/:id",
-  authMiddleware,
-  upload.single("imageUrl"),
-  updateEventController
-);
-router.delete("/:id", authMiddleware, deleteEventController);
-router.get("/:id/attendees", authMiddleware, getEventAttendeesController);
+    // Rute dinamis untuk slug (untuk halaman detail publik)
+    this.router.get(
+      "/:slug",
+      this.eventController.getEventBySlug.bind(this.eventController)
+    );
 
-export default router;
+    this.router.post(
+      "/",
+      authMiddleware,
+      upload.single("imageUrl"),
+      this.eventController.createEvent.bind(this.eventController)
+    );
+    this.router.put(
+      "/:id",
+      authMiddleware,
+      upload.single("imageUrl"),
+      this.eventController.updateEvent.bind(this.eventController)
+    );
+    this.router.delete(
+      "/:id",
+      authMiddleware,
+      this.eventController.deleteEvent.bind(this.eventController)
+    );
+    this.router.get(
+      "/:id/attendees",
+      authMiddleware,
+      this.eventController.getEventAttendees.bind(this.eventController)
+    );
+  }
+}
+
+export default new EventRouter().router;

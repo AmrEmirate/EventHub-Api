@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, Voucher } from "@prisma/client";
 
-export class VoucherRepository {
+class VoucherRepository {
   private getClient(tx?: Prisma.TransactionClient) {
     return tx || prisma;
   }
@@ -44,3 +44,5 @@ export class VoucherRepository {
     });
   }
 }
+
+export { VoucherRepository };

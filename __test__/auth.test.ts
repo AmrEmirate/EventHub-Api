@@ -2,7 +2,7 @@ import request from "supertest";
 import express, { Request, Response, NextFunction } from "express";
 import authRoutes from "../src/routers/auth.routes";
 import { errorMiddleware } from "../src/middleware/error.middleware";
-import * as authService from "../src/service/auth.service";
+import { AuthService } from "../src/service/auth.service";
 import * as passwordHelper from "../src/utils/password.helper";
 import * as jwtHelper from "../src/utils/jwt.helper";
 import prisma from "../src/config/prisma";
@@ -12,7 +12,7 @@ jest.mock("../src/service/auth.service");
 jest.mock("../src/utils/password.helper");
 jest.mock("../src/utils/jwt.helper");
 
-const mockedAuthService = authService as jest.Mocked<typeof authService>;
+const MockedAuthService = AuthService as jest.MockedClass<typeof AuthService>;
 const mockedPasswordHelper = passwordHelper as jest.Mocked<
   typeof passwordHelper
 >;
@@ -50,7 +50,7 @@ describe("Auth Endpoints", () => {
     });
 
     it("Harus berhasil mendaftarkan pengguna baru dengan data yang valid", async () => {
-      mockedAuthService.registerUser.mockResolvedValue({
+      MockedAuthService.prototype.register = jest.fn().mockResolvedValue({
         message: "Registrasi berhasil!",
       });
 
@@ -63,9 +63,9 @@ describe("Auth Endpoints", () => {
     });
 
     it("Harus menolak registrasi dengan email yang sudah ada", async () => {
-      mockedAuthService.registerUser.mockRejectedValue(
-        new Error("Email sudah terdaftar.")
-      );
+      MockedAuthService.prototype.register = jest
+        .fn()
+        .mockRejectedValue(new Error("Email sudah terdaftar."));
 
       const res = await request(app)
         .post("/api/v1/auth/register")
@@ -78,9 +78,9 @@ describe("Auth Endpoints", () => {
 
   describe("POST /api/v1/auth/login", () => {
     it("Harus menolak login dengan password yang salah", async () => {
-      mockedAuthService.login.mockRejectedValue(
-        new Error("Kredensial tidak valid")
-      );
+      MockedAuthService.prototype.login = jest
+        .fn()
+        .mockRejectedValue(new Error("Kredensial tidak valid"));
 
       const res = await request(app).post("/api/v1/auth/login").send({
         email: testEmail,
@@ -92,7 +92,7 @@ describe("Auth Endpoints", () => {
     });
 
     it("Harus berhasil login dengan kredensial yang benar dan mengembalikan token", async () => {
-      mockedAuthService.login.mockResolvedValue({
+      MockedAuthService.prototype.login = jest.fn().mockResolvedValue({
         token: "mock-jwt-token-yang-valid",
         user: {
           ...userData,

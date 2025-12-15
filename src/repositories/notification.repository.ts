@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, Notification } from "@prisma/client";
 
-export class NotificationRepository {
+class NotificationRepository {
   async create(
     data:
       | Prisma.NotificationCreateInput
@@ -20,3 +20,5 @@ export class NotificationRepository {
     return prisma.notification.updateMany(args);
   }
 }
+
+export { NotificationRepository };

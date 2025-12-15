@@ -1,16 +1,32 @@
 import { Router } from "express";
-import {
-  getMyVouchersController,
-  createOrganizerVoucherController,
-} from "../controllers/voucher.controller";
+import { VoucherController } from "../controllers/voucher.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
-const router = Router();
+class VoucherRouter {
+  public router: Router;
+  private voucherController: VoucherController;
 
-// Rute untuk customer mendapatkan vouchernya
-router.get("/me", authMiddleware, getMyVouchersController);
+  constructor() {
+    this.router = Router();
+    this.voucherController = new VoucherController();
+    this.initializeRoutes();
+  }
 
-// [RUTE BARU] Rute untuk organizer membuat voucher
-router.post("/organizer", authMiddleware, createOrganizerVoucherController);
+  private initializeRoutes(): void {
+    // Rute untuk customer mendapatkan vouchernya
+    this.router.get(
+      "/me",
+      authMiddleware,
+      this.voucherController.getMyVouchers.bind(this.voucherController)
+    );
 
-export default router;
+    // [RUTE BARU] Rute untuk organizer membuat voucher
+    this.router.post(
+      "/organizer",
+      authMiddleware,
+      this.voucherController.createOrganizerVoucher.bind(this.voucherController)
+    );
+  }
+}
+
+export default new VoucherRouter().router;

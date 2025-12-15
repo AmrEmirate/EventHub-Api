@@ -1,10 +1,10 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import "./types"; // Force load types
 import dotenv from "dotenv";
 import path from "path";
 import cors from "cors";
+import passport from "./config/passport";
 import swaggerUi from "swagger-ui-express";
-// [PERBAIKAN] Ubah cara impor swaggerDocument
 import swaggerDocument from "./config/swagger";
 
 // Impor Rute
@@ -19,46 +19,100 @@ import notificationRoutes from "./routers/notification.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 
 // Impor tugas cron
-import "./service/expire-transactions.service";
-import "./service/expire-points.service";
-import "./service/cancel-pending-confirmations.service";
+import "./cron/expire-transactions";
+import "./cron/expire-points";
+import "./cron/cancel-pending-confirmations";
 
 dotenv.config();
 
-const app = express();
+class App {
+  public app: Application;
+  private readonly isDevelopment: boolean;
 
-// --- Middleware ---
+  constructor() {
+    this.app = express();
+    this.isDevelopment = process.env.NODE_ENV === "development";
+    this.initializeMiddlewares();
+    this.initializeRoutes();
+    this.initializeSwagger();
+    this.initializeErrorHandling();
+  }
 
-// Konfigurasi CORS untuk mengizinkan permintaan dari frontend
-const corsOptions = {
-  origin: "http://localhost:3000",
-  optionsSuccessStatus: 200,
-};
-app.use(cors(corsOptions));
+  private initializeMiddlewares(): void {
+    // Konfigurasi CORS untuk mengizinkan permintaan dari frontend
+    const corsOptions = {
+      origin:
+        process.env.CORS_ORIGIN ||
+        process.env.FE_URL ||
+        "http://localhost:3000",
+      credentials: true,
+      optionsSuccessStatus: 200,
+    };
+    this.app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    // Initialize Passport
+    this.app.use(passport.initialize());
 
-// Sajikan file statis dari folder 'public'
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
+    // Body parsing middleware
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
 
-// --- Rute API ---
-const apiRouter = express.Router();
-apiRouter.use("/auth", authRoutes);
-apiRouter.use("/events", eventRoutes);
-apiRouter.use("/transactions", transactionRoutes);
-apiRouter.use("/users", userRoutes);
-apiRouter.use("/vouchers", voucherRoutes);
-apiRouter.use("/reviews", reviewRoutes);
-apiRouter.use("/dashboard", dashboardRoutes);
-apiRouter.use("/notifications", notificationRoutes);
+    // Sajikan file statis dari folder 'public'
+    this.app.use(
+      "/uploads",
+      express.static(path.join(__dirname, "../public/uploads"))
+    );
 
-app.use("/api/v1", apiRouter);
+    // Request logging middleware (only in development)
+    if (this.isDevelopment) {
+      this.app.use((req: Request, res: Response, next: NextFunction) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+        next();
+      });
+    }
+  }
 
-// --- Dokumentasi API (Swagger) ---
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  private initializeRoutes(): void {
+    const apiRouter = express.Router();
 
-// --- Penanganan Error ---
-app.use(errorMiddleware);
+    // Register all routes
+    apiRouter.use("/auth", authRoutes);
+    apiRouter.use("/events", eventRoutes);
+    apiRouter.use("/transactions", transactionRoutes);
+    apiRouter.use("/users", userRoutes);
+    apiRouter.use("/vouchers", voucherRoutes);
+    apiRouter.use("/reviews", reviewRoutes);
+    apiRouter.use("/dashboard", dashboardRoutes);
+    apiRouter.use("/notifications", notificationRoutes);
 
-export default app;
+    // Mount API router
+    this.app.use("/api/v1", apiRouter);
+
+    // Health check endpoint
+    this.app.get("/health", (req: Request, res: Response) => {
+      res.status(200).json({
+        status: "OK",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "development",
+      });
+    });
+  }
+
+  private initializeSwagger(): void {
+    this.app.use(
+      "/api-docs",
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerDocument)
+    );
+  }
+
+  private initializeErrorHandling(): void {
+    this.app.use(errorMiddleware);
+  }
+
+  public getApp(): Application {
+    return this.app;
+  }
+}
+
+export default new App().app;

@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, Event } from "@prisma/client";
 
-export class EventRepository {
+class EventRepository {
   private getClient(tx?: Prisma.TransactionClient) {
     return tx || prisma;
   }
@@ -120,3 +120,5 @@ export class EventRepository {
     });
   }
 }
+
+export { EventRepository };

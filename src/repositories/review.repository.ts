@@ -1,7 +1,7 @@
 import prisma from "../config/prisma";
 import { Prisma, Review } from "@prisma/client";
 
-export class ReviewRepository {
+class ReviewRepository {
   async create(
     data: Prisma.ReviewCreateInput | Prisma.ReviewUncheckedCreateInput
   ): Promise<Review> {
@@ -14,3 +14,5 @@ export class ReviewRepository {
 
   // Add other methods as needed based on service usage
 }
+
+export { ReviewRepository };

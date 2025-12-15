@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
-import * as eventService from "../service/events.service";
-import { Event, UserRole } from "@prisma/client";
+import { EventService } from "../service/events.service";
+import {
+  CloudinaryService,
+  CloudinaryFolder,
+} from "../service/cloudinary.service";
 import { z } from "zod";
 
 // Skema dasar event
@@ -69,153 +72,172 @@ const updateEventSchema = rawEventSchema
     return data;
   });
 
-export const getAllEventsController = async (req: Request, res: Response) => {
-  try {
-    const events = await eventService.getAllEvents(req.query);
-    res.status(200).json(events);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Gagal mengambil event", error: error.message });
-  }
-};
+class EventController {
+  private eventService: EventService;
+  private cloudinaryService: CloudinaryService;
 
-export const getEventByIdController = async (req: Request, res: Response) => {
-  try {
-    const event = await eventService.getEventById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: "Event tidak ditemukan" });
+  constructor() {
+    this.eventService = new EventService();
+    this.cloudinaryService = new CloudinaryService();
+  }
+
+  public async getAllEvents(req: Request, res: Response) {
+    try {
+      const events = await this.eventService.getAllEvents(req.query);
+      res.status(200).json(events);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Gagal mengambil event", error: error.message });
     }
-    res.status(200).json(event);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Gagal mengambil event", error: error.message });
   }
-};
 
-export const getEventBySlugController = async (req: Request, res: Response) => {
-  try {
-    const event = await eventService.getEventBySlug(req.params.slug);
-    if (!event) {
-      return res.status(404).json({ message: "Event tidak ditemukan" });
+  public async getEventById(req: Request, res: Response) {
+    try {
+      const event = await this.eventService.getEventById(req.params.id);
+      if (!event) {
+        return res.status(404).json({ message: "Event tidak ditemukan" });
+      }
+      res.status(200).json(event);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Gagal mengambil event", error: error.message });
     }
-    res.status(200).json(event);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Gagal mengambil event", error: error.message });
   }
-};
 
-export const createEventController = async (req: Request, res: Response) => {
-  if (req.user?.role !== UserRole.ORGANIZER) {
-    return res
-      .status(403)
-      .json({
+  public async getEventBySlug(req: Request, res: Response) {
+    try {
+      const event = await this.eventService.getEventBySlug(req.params.slug);
+      if (!event) {
+        return res.status(404).json({ message: "Event tidak ditemukan" });
+      }
+      res.status(200).json(event);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Gagal mengambil event", error: error.message });
+    }
+  }
+
+  public async createEvent(req: Request, res: Response) {
+    if (req.user?.role !== "ORGANIZER") {
+      return res.status(403).json({
         message: "Akses ditolak. Hanya organizer yang bisa membuat event.",
       });
-  }
-  try {
-    const validatedData = createEventSchema.parse(req.body);
+    }
+    try {
+      const validatedData = createEventSchema.parse(req.body);
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      // Upload image to Cloudinary if file exists
+      let imageUrl = null;
+      if (req.file) {
+        const uploadResult = await this.cloudinaryService.uploadImage(
+          req.file.path,
+          CloudinaryFolder.EVENTS
+        );
+        imageUrl = uploadResult.url;
+      }
 
-    const eventData = { ...validatedData, organizerId: req.user.id, imageUrl };
-    const newEvent = await eventService.createEvent(eventData);
-    res.status(201).json({ message: "Event berhasil dibuat", data: newEvent });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({
+      const eventData = {
+        ...validatedData,
+        organizerId: req.user!.id,
+        imageUrl,
+      };
+      const newEvent = await this.eventService.createEvent(eventData);
+      res
+        .status(201)
+        .json({ message: "Event berhasil dibuat", data: newEvent });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
           message: "Input tidak valid",
           errors: error.flatten().fieldErrors,
         });
+      }
+      res
+        .status(500)
+        .json({ message: "Gagal membuat event", error: error.message });
     }
-    res
-      .status(500)
-      .json({ message: "Gagal membuat event", error: error.message });
   }
-};
 
-export const updateEventController = async (req: Request, res: Response) => {
-  if (req.user?.role !== UserRole.ORGANIZER) {
-    return res.status(403).json({ message: "Akses ditolak." });
-  }
-  try {
-    const validatedData = updateEventSchema.parse(req.body);
-
-    const dataToUpdate: Partial<Event> = { ...validatedData };
-
-    if (req.file) {
-      dataToUpdate.imageUrl = `/uploads/${req.file.filename}`;
+  public async updateEvent(req: Request, res: Response) {
+    if (req.user?.role !== "ORGANIZER") {
+      return res.status(403).json({ message: "Akses ditolak." });
     }
+    try {
+      const validatedData = updateEventSchema.parse(req.body);
 
-    const updatedEvent = await eventService.updateEvent(
-      req.params.id,
-      req.user.id,
-      dataToUpdate
-    );
-    res
-      .status(200)
-      .json({ message: "Event berhasil diperbarui", data: updatedEvent });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({
+      const dataToUpdate: any = { ...validatedData };
+
+      // Upload new image to Cloudinary if file exists
+      if (req.file) {
+        const uploadResult = await this.cloudinaryService.uploadImage(
+          req.file.path,
+          CloudinaryFolder.EVENTS
+        );
+        dataToUpdate.imageUrl = uploadResult.url;
+      }
+
+      const updatedEvent = await this.eventService.updateEvent(
+        req.params.id,
+        req.user!.id,
+        dataToUpdate
+      );
+      res
+        .status(200)
+        .json({ message: "Event berhasil diperbarui", data: updatedEvent });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
           message: "Input tidak valid",
           errors: error.flatten().fieldErrors,
         });
+      }
+      res.status(403).json({ message: error.message });
     }
-    res.status(403).json({ message: error.message });
   }
-};
 
-export const deleteEventController = async (req: Request, res: Response) => {
-  if (req.user?.role !== UserRole.ORGANIZER) {
-    return res.status(403).json({ message: "Akses ditolak." });
+  public async deleteEvent(req: Request, res: Response) {
+    if (req.user?.role !== "ORGANIZER") {
+      return res.status(403).json({ message: "Akses ditolak." });
+    }
+    try {
+      await this.eventService.deleteEvent(req.params.id, req.user!.id);
+      res.status(200).json({ message: "Event berhasil dihapus" });
+    } catch (error: any) {
+      res.status(403).json({ message: error.message });
+    }
   }
-  try {
-    await eventService.deleteEvent(req.params.id, req.user.id);
-    res.status(200).json({ message: "Event berhasil dihapus" });
-  } catch (error: any) {
-    res.status(403).json({ message: error.message });
-  }
-};
 
-export const getEventAttendeesController = async (
-  req: Request,
-  res: Response
-) => {
-  if (req.user?.role !== UserRole.ORGANIZER) {
-    return res.status(403).json({ message: "Akses ditolak." });
+  public async getEventAttendees(req: Request, res: Response) {
+    if (req.user?.role !== "ORGANIZER") {
+      return res.status(403).json({ message: "Akses ditolak." });
+    }
+    try {
+      const attendees = await this.eventService.getEventAttendees(
+        req.user!.id,
+        req.params.id
+      );
+      res.status(200).json(attendees);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   }
-  try {
-    const attendees = await eventService.getEventAttendees(
-      req.user.id,
-      req.params.id
-    );
-    res.status(200).json(attendees);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
-export const getMyOrganizerEventsController = async (
-  req: Request,
-  res: Response
-) => {
-  if (req.user?.role !== "ORGANIZER") {
-    return res.status(403).json({ message: "Akses ditolak." });
+  public async getMyOrganizerEvents(req: Request, res: Response) {
+    if (req.user?.role !== "ORGANIZER") {
+      return res.status(403).json({ message: "Akses ditolak." });
+    }
+    try {
+      const events = await this.eventService.getMyOrganizerEvents(req.user!.id);
+      res.status(200).json(events);
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ message: "Gagal mengambil event Anda", error: error.message });
+    }
   }
-  try {
-    const events = await eventService.getMyOrganizerEvents(req.user.id);
-    res.status(200).json(events);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Gagal mengambil event Anda", error: error.message });
-  }
-};
+}
+
+export { EventController };

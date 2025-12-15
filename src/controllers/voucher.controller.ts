@@ -1,8 +1,5 @@
 import { Request, Response } from "express";
-import {
-  getVouchersByUserId,
-  createOrganizerVoucher,
-} from "../service/voucher.service";
+import { VoucherService } from "../service/voucher.service";
 import { z } from "zod";
 import { UserRole } from "@prisma/client";
 
@@ -26,48 +23,59 @@ const createVoucherSchema = z.object({
   expiresAt: z.coerce.date({ message: "Format tanggal tidak valid" }),
 });
 
-// Controller untuk user (tidak berubah)
-export const getMyVouchersController = async (req: Request, res: Response) => {
-  try {
-    const vouchers = await getVouchersByUserId(req.user!.id);
-    res.status(200).json(vouchers);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Gagal mengambil data voucher", error: error.message });
-  }
-};
+class VoucherController {
+  private voucherService: VoucherService;
 
-// [CONTROLLER BARU] Untuk menangani pembuatan voucher oleh organizer
-export const createOrganizerVoucherController = async (
-  req: Request,
-  res: Response
-) => {
-  if (req.user?.role !== UserRole.ORGANIZER) {
-    return res
-      .status(403)
-      .json({ message: "Hanya organizer yang bisa membuat voucher." });
+  constructor() {
+    this.voucherService = new VoucherService();
   }
 
-  try {
-    const validatedData = createVoucherSchema.parse(req.body);
-    const organizerId = req.user!.id;
+  // Controller untuk user (tidak berubah)
+  public async getMyVouchers(req: Request, res: Response) {
+    try {
+      const vouchers = await this.voucherService.getVouchersByUserId(
+        req.user!.id
+      );
+      res.status(200).json(vouchers);
+    } catch (error: any) {
+      res.status(500).json({
+        message: "Gagal mengambil data voucher",
+        error: error.message,
+      });
+    }
+  }
 
-    const newVoucher = await createOrganizerVoucher(organizerId, validatedData);
-
-    res
-      .status(201)
-      .json({ message: "Voucher berhasil dibuat!", data: newVoucher });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
+  // [CONTROLLER BARU] Untuk menangani pembuatan voucher oleh organizer
+  public async createOrganizerVoucher(req: Request, res: Response) {
+    if (req.user?.role !== UserRole.ORGANIZER) {
       return res
-        .status(400)
-        .json({
+        .status(403)
+        .json({ message: "Hanya organizer yang bisa membuat voucher." });
+    }
+
+    try {
+      const validatedData = createVoucherSchema.parse(req.body);
+      const organizerId = req.user!.id;
+
+      const newVoucher = await this.voucherService.createOrganizerVoucher(
+        organizerId,
+        validatedData
+      );
+
+      res
+        .status(201)
+        .json({ message: "Voucher berhasil dibuat!", data: newVoucher });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
           message: "Input tidak valid",
           errors: error.flatten().fieldErrors,
         });
+      }
+      // Tangani error lain dari service (misal: kode duplikat)
+      res.status(400).json({ message: error.message });
     }
-    // Tangani error lain dari service (misal: kode duplikat)
-    res.status(400).json({ message: error.message });
   }
-};
+}
+
+export { VoucherController };
