@@ -1,19 +1,21 @@
 import prisma from "../config/prisma";
-import { sendTransactionStatusEmail } from "../utils/mailer";
+
 import { Prisma } from "@prisma/client";
 import { NotificationService } from "./notification.service";
 import { TransactionRepository } from "../repositories/transaction.repository";
 import { EventRepository } from "../repositories/event.repository";
 import { UserRepository } from "../repositories/user.repository";
 import { VoucherRepository } from "../repositories/voucher.repository";
-import { midtransSnap } from "../config/midtrans";
+
+import { TransactionHelper } from "./transaction.helper";
+import { TransactionActionHelper } from "./transaction-action.helper";
 
 class TransactionService {
-  private transactionRepository: TransactionRepository;
-  private eventRepository: EventRepository;
-  private userRepository: UserRepository;
-  private voucherRepository: VoucherRepository;
-  private notificationService: NotificationService;
+  public transactionRepository: TransactionRepository;
+  public eventRepository: EventRepository;
+  public userRepository: UserRepository;
+  public voucherRepository: VoucherRepository;
+  public notificationService: NotificationService;
 
   constructor() {
     this.transactionRepository = new TransactionRepository();
@@ -48,50 +50,28 @@ class TransactionService {
         let usedVoucherId: string | undefined = undefined;
 
         if (voucherCode) {
-          const voucher = await this.voucherRepository.findFirst(
-            {
-              where: {
-                code: voucherCode,
-                expiresAt: { gte: new Date() },
-                isUsed: false,
-              },
-            },
-            tx
-          );
-
-          if (!voucher) {
-            throw new Error(
-              "Kode tidak valid, sudah digunakan, atau kedaluwarsa."
+          const { finalPrice: newPrice, usedVoucherId: reqVoucherId } =
+            await TransactionHelper.validateAndApplyVoucher(
+              this.voucherRepository,
+              voucherCode,
+              eventId,
+              totalPrice,
+              tx
             );
-          }
-          if (voucher.eventId && voucher.eventId !== eventId) {
-            throw new Error(
-              "Voucher ini tidak dapat digunakan untuk event ini."
-            );
-          }
-          usedVoucherId = voucher.id;
-          const discountFromVoucher =
-            (totalPrice * voucher.discountPercent) / 100;
-          const discountedAmount =
-            voucher.maxDiscount && discountFromVoucher > voucher.maxDiscount
-              ? voucher.maxDiscount
-              : discountFromVoucher;
-          finalPrice -= discountedAmount;
+          finalPrice = newPrice;
+          usedVoucherId = reqVoucherId;
         }
 
         if (usePoints) {
-          const pointsAsCurrency = user.points;
-          pointsUsed = Math.min(finalPrice, pointsAsCurrency);
-          finalPrice -= pointsUsed;
-          if (pointsUsed > 0) {
-            await this.userRepository.update(
+          const { pointsUsed: pUsed, finalPrice: fPrice } =
+            await TransactionHelper.processPoints(
+              this.userRepository,
               userId,
-              {
-                points: { decrement: pointsUsed },
-              },
+              finalPrice,
               tx
             );
-          }
+          pointsUsed = pUsed;
+          finalPrice = fPrice;
         }
 
         const paymentDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000);
@@ -142,33 +122,10 @@ class TransactionService {
       transaction.finalPrice > 0 &&
       transaction.status === "PENDING_PAYMENT"
     ) {
-      try {
-        const parameter = {
-          transaction_details: {
-            order_id: transaction.id,
-            gross_amount: transaction.finalPrice,
-          },
-          credit_card: {
-            secure: true,
-          },
-          customer_details: {},
-        };
-
-        const snapResponse = await midtransSnap.createTransaction(parameter);
-
-        await this.transactionRepository.update(transaction.id, {
-          snapToken: snapResponse.token,
-          snapRedirectUrl: snapResponse.redirect_url,
-        } as any);
-
-        return {
-          ...transaction,
-          snapToken: snapResponse.token,
-          snapRedirectUrl: snapResponse.redirect_url,
-        };
-      } catch (error) {
-        throw new Error("Gagal menginisialisasi pembayaran gateway.");
-      }
+      return await TransactionHelper.initiatePaymentGateway(
+        this.transactionRepository,
+        transaction
+      );
     }
 
     return transaction;
@@ -226,154 +183,27 @@ class TransactionService {
   }
 
   public async approveTransaction(organizerId: string, transactionId: string) {
-    const transaction = await this.transactionRepository.findFirst({
-      where: { id: transactionId, event: { organizerId: organizerId } },
-      include: {
-        user: { select: { email: true } },
-        event: { select: { name: true } },
-      },
-    });
-
-    if (!transaction)
-      throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
-
-    const txWithRelations = transaction as any;
-
-    if (txWithRelations.status !== "PENDING_CONFIRMATION") {
-      throw new Error(
-        "Hanya transaksi yang menunggu konfirmasi yang bisa disetujui."
-      );
-    }
-
-    await sendTransactionStatusEmail(
-      txWithRelations.user.email,
-      "Pembayaran Dikonfirmasi",
-      `Pembayaran Anda untuk event "${txWithRelations.event.name}" telah berhasil dikonfirmasi.`
+    return TransactionActionHelper.approveTransaction(
+      this,
+      organizerId,
+      transactionId
     );
-
-    await this.notificationService.createNotification(
-      txWithRelations.userId,
-      `Pembayaran untuk event "${txWithRelations.event.name}" telah dikonfirmasi! E-tiket Anda sekarang tersedia.`
-    );
-
-    return this.transactionRepository.update(transactionId, {
-      status: "COMPLETED",
-    });
   }
 
   public async rejectTransaction(organizerId: string, transactionId: string) {
-    const transaction = await this.transactionRepository.findFirst({
-      where: {
-        id: transactionId,
-        event: { organizerId: organizerId },
-      },
-      include: {
-        user: { select: { email: true } },
-        event: { select: { name: true } },
-      },
-    });
-
-    if (!transaction)
-      throw new Error("Transaksi tidak ditemukan atau Anda tidak punya akses.");
-
-    const txWithRelations = transaction as any;
-
-    if (txWithRelations.status !== "PENDING_CONFIRMATION")
-      throw new Error(
-        "Hanya transaksi yang menunggu konfirmasi yang bisa ditolak."
-      );
-
-    await sendTransactionStatusEmail(
-      txWithRelations.user.email,
-      "Pembayaran Ditolak",
-      `Mohon maaf, pembayaran Anda untuk event "${txWithRelations.event.name}" ditolak. Poin atau voucher yang digunakan telah dikembalikan.`
+    return TransactionActionHelper.rejectTransaction(
+      this,
+      organizerId,
+      transactionId
     );
-
-    await this.notificationService.createNotification(
-      txWithRelations.userId,
-      `Pembayaran untuk event "${txWithRelations.event.name}" ditolak. Poin dan voucher Anda telah dikembalikan.`
-    );
-
-    return prisma.$transaction(async (tx) => {
-      if (txWithRelations.status !== "PENDING_PAYMENT") {
-        await this.eventRepository.update(
-          txWithRelations.eventId,
-          {
-            ticketSold: { decrement: txWithRelations.quantity },
-          },
-          tx
-        );
-      }
-
-      if (txWithRelations.pointsUsed > 0) {
-        await this.userRepository.update(
-          txWithRelations.userId,
-          {
-            points: { increment: txWithRelations.pointsUsed },
-          },
-          tx
-        );
-      }
-
-      if (txWithRelations.voucherId) {
-        await this.voucherRepository.update(
-          txWithRelations.voucherId,
-          { isUsed: false },
-          tx
-        );
-      }
-
-      return await this.transactionRepository.update(
-        transactionId,
-        { status: "REJECTED" },
-        tx
-      );
-    });
   }
 
   public async cancelTransaction(userId: string, transactionId: string) {
-    const transaction = await this.transactionRepository.findFirst({
-      where: { id: transactionId, userId: userId },
-    });
-    if (!transaction) throw new Error("Transaksi tidak ditemukan.");
-    if (transaction.status !== "PENDING_PAYMENT")
-      throw new Error(
-        "Hanya transaksi yang menunggu pembayaran yang bisa dibatalkan."
-      );
-
-    return prisma.$transaction(async (tx) => {
-      if (transaction.status !== "PENDING_PAYMENT") {
-        await this.eventRepository.update(
-          transaction.eventId,
-          {
-            ticketSold: { decrement: transaction.quantity },
-          },
-          tx
-        );
-      }
-
-      if (transaction.pointsUsed > 0) {
-        await this.userRepository.update(
-          transaction.userId,
-          {
-            points: { increment: transaction.pointsUsed },
-          },
-          tx
-        );
-      }
-      if (transaction.voucherId) {
-        await this.voucherRepository.update(
-          transaction.voucherId,
-          { isUsed: false },
-          tx
-        );
-      }
-      return await this.transactionRepository.update(
-        transactionId,
-        { status: "CANCELLED" },
-        tx
-      );
-    });
+    return TransactionActionHelper.cancelTransaction(
+      this,
+      userId,
+      transactionId
+    );
   }
 
   public async getTransactionById(userId: string, transactionId: string) {
