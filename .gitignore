@@ -6,6 +6,7 @@
 
 # File environment variables, berisi rahasia & kunci API
 .env
+seed.ts
 
 # File-file log
 *.log

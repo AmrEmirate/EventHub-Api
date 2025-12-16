@@ -47,6 +47,10 @@ class ReviewService {
       imageUrl,
     });
   }
+
+  public async getReviewsByEvent(eventId: string) {
+    return this.reviewRepository.findByEventId(eventId);
+  }
 }
 
 export { ReviewService };

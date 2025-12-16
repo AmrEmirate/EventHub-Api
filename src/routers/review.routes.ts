@@ -20,6 +20,11 @@ class ReviewRouter {
       upload.single("imageUrl"),
       this.reviewController.createReview.bind(this.reviewController)
     );
+
+    this.router.get(
+      "/:eventId",
+      this.reviewController.getReviewsByEvent.bind(this.reviewController)
+    );
   }
 }
 

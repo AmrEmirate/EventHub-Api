@@ -15,6 +15,7 @@ import voucherRoutes from "./routers/voucher.routes";
 import reviewRoutes from "./routers/review.routes";
 import dashboardRoutes from "./routers/dashboard.routes";
 import notificationRoutes from "./routers/notification.routes";
+import rewardsRoutes from "./routers/rewards.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -67,6 +68,7 @@ class App {
     apiRouter.use("/reviews", reviewRoutes);
     apiRouter.use("/dashboard", dashboardRoutes);
     apiRouter.use("/notifications", notificationRoutes);
+    apiRouter.use("/rewards", rewardsRoutes);
 
     this.app.use("/api/v1", apiRouter);
 

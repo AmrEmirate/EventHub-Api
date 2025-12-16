@@ -41,6 +41,24 @@ class ReviewController {
       res.status(400).json({ message: error.message });
     }
   }
+
+  public async getReviewsByEvent(req: Request, res: Response) {
+    try {
+      const { eventId } = req.params;
+
+      if (!eventId) {
+        return res.status(400).json({ message: "Event ID diperlukan" });
+      }
+
+      const reviews = await this.reviewService.getReviewsByEvent(eventId);
+      res.status(200).json(reviews);
+    } catch (error: any) {
+      res.status(500).json({
+        message: "Gagal mengambil ulasan event",
+        error: error.message,
+      });
+    }
+  }
 }
 
 export { ReviewController };
