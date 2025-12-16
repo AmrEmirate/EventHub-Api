@@ -1,52 +1,43 @@
 import nodemailer from "nodemailer";
 
-// Konfigurasi transporter yang mengambil data dari file .env
 const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || "smtp.ethereal.email",
+  host: process.env.MAIL_HOST,
   port: parseInt(process.env.MAIL_PORT || "587"),
-  secure: process.env.MAIL_PORT === "465", // true jika port 465, selain itu false
+  secure: process.env.MAIL_PORT === "465",
   auth: {
-    user: process.env.MAIL_USER, // Ambil dari .env
-    pass: process.env.MAIL_PASS, // Ambil dari .env
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
   },
 });
 
-// Base URL frontend dari environment
-const getFrontendUrl = () => process.env.FE_URL || "http://localhost:3000";
+const getFrontendUrl = () => {
+  if (!process.env.FE_URL) {
+    throw new Error("FE_URL environment variable is required");
+  }
+  return process.env.FE_URL;
+};
 
-/**
- * Mengirim email terkait status transaksi.
- */
 export const sendTransactionStatusEmail = async (
   to: string,
   subject: string,
   text: string
 ) => {
   try {
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: '"EventHub Platform" <no-reply@eventhub.com>',
       to: to,
       subject: subject,
       html: `<b>${text}</b>`,
     });
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "Preview URL (Transaction Status): %s",
-        nodemailer.getTestMessageUrl(info)
-      );
-    }
   } catch (error) {
-    console.error(`Gagal mengirim email status transaksi ke ${to}:`, error);
+    throw new Error("Gagal mengirim email status transaksi");
   }
 };
 
-/**
- * Mengirim email verifikasi akun kepada pengguna baru.
- */
 export const sendVerificationEmail = async (email: string, token: string) => {
   const verificationLink = `${getFrontendUrl()}/auth/verify?token=${token}`;
   try {
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: '"EventHub Platform" <no-reply@eventhub.com>',
       to: email,
       subject: "Verifikasi Akun EventHub Anda",
@@ -64,25 +55,15 @@ export const sendVerificationEmail = async (email: string, token: string) => {
         </div>
       `,
     });
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "Preview URL (Verification): %s",
-        nodemailer.getTestMessageUrl(info)
-      );
-    }
   } catch (error) {
-    console.error(`Gagal mengirim email verifikasi ke ${email}:`, error);
     throw new Error("Gagal mengirim email verifikasi.");
   }
 };
 
-/**
- * Mengirim email berisi link untuk mereset password.
- */
 export const sendPasswordResetEmail = async (email: string, token: string) => {
   const resetLink = `${getFrontendUrl()}/auth/reset-password?token=${token}`;
   try {
-    const info = await transporter.sendMail({
+    await transporter.sendMail({
       from: '"EventHub Platform" <no-reply@eventhub.com>',
       to: email,
       subject: "Reset Password Akun EventHub Anda",
@@ -100,14 +81,7 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
         </div>
       `,
     });
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "Preview URL (Password Reset): %s",
-        nodemailer.getTestMessageUrl(info)
-      );
-    }
   } catch (error) {
-    console.error(`Gagal mengirim email reset password ke ${email}:`, error);
     throw new Error("Gagal mengirim email reset password.");
   }
 };

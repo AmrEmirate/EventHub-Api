@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { validate } from "./index";
 
-// Schema untuk create voucher oleh organizer
 const createVoucherSchema = z.object({
   eventId: z.string().uuid({ message: "Event ID tidak valid" }),
   code: z
@@ -21,8 +20,6 @@ const createVoucherSchema = z.object({
   expiresAt: z.coerce.date({ message: "Format tanggal tidak valid" }),
 });
 
-// Export validators
 export const validateCreateVoucher = validate(createVoucherSchema);
 
-// Export schemas
 export { createVoucherSchema };

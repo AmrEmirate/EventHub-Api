@@ -1,4 +1,3 @@
-// Review related types
 export interface CreateReviewInput {
   eventId: string;
   rating: number;

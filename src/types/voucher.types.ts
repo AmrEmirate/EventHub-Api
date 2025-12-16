@@ -1,4 +1,3 @@
-// Voucher related types
 export interface CreateVoucherInput {
   eventId: string;
   code: string;

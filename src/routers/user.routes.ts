@@ -32,7 +32,6 @@ class UserRouter {
       this.userController.changePassword.bind(this.userController)
     );
 
-    // [RUTE BARU] Rute untuk upload avatar
     this.router.put(
       "/me/avatar",
       authMiddleware,

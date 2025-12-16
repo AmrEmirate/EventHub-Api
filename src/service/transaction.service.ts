@@ -30,7 +30,6 @@ class TransactionService {
     voucherCode?: string,
     usePoints?: boolean
   ) {
-    // 1. Lakukan operasi database atomic
     const transaction = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const event = await this.eventRepository.findById(eventId, tx);
@@ -139,7 +138,6 @@ class TransactionService {
       }
     );
 
-    // 2. Generate Midtrans Token (di luar transaksi DB) jika tidak gratis
     if (
       transaction.finalPrice > 0 &&
       transaction.status === "PENDING_PAYMENT"
@@ -153,14 +151,11 @@ class TransactionService {
           credit_card: {
             secure: true,
           },
-          customer_details: {
-            // email: user.email // Cannot easily access user email here without refetching
-          },
+          customer_details: {},
         };
 
         const snapResponse = await midtransSnap.createTransaction(parameter);
 
-        // 3. Update transaksi dengan Snap Token
         await this.transactionRepository.update(transaction.id, {
           snapToken: snapResponse.token,
           snapRedirectUrl: snapResponse.redirect_url,
@@ -172,7 +167,6 @@ class TransactionService {
           snapRedirectUrl: snapResponse.redirect_url,
         };
       } catch (error) {
-        console.error("Midtrans Error:", error);
         throw new Error("Gagal menginisialisasi pembayaran gateway.");
       }
     }

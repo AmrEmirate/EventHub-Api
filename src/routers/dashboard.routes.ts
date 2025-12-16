@@ -13,7 +13,6 @@ class DashboardRouter {
   }
 
   private initializeRoutes(): void {
-    // [PERBAIKAN] Gunakan hanya satu rute untuk mengambil semua data dasbor
     this.router.get(
       "/",
       authMiddleware,

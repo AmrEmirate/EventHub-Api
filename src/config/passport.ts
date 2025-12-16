@@ -3,7 +3,6 @@ import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import prisma from "./prisma";
 import { generateToken } from "../utils/jwt.helper";
 
-// Configure Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -28,7 +27,6 @@ passport.use(
           return done(new Error("Email tidak tersedia dari Google"), null);
         }
 
-        // Check if user already exists
         let user = await prisma.user.findFirst({
           where: {
             OR: [{ googleId: googleId }, { email: email }],
@@ -37,7 +35,6 @@ passport.use(
         });
 
         if (user) {
-          // Update googleId if user exists but doesn't have googleId
           if (!user.googleId) {
             user = await prisma.user.update({
               where: { id: user.id },
@@ -49,13 +46,12 @@ passport.use(
             });
           }
         } else {
-          // Create new user with Google account
           user = await prisma.user.create({
             data: {
               email: email,
               name: name,
               googleId: googleId,
-              password: "", // Empty password for social login users
+              password: "",
               role: "CUSTOMER",
               emailVerified: new Date(),
               profile: {
@@ -68,7 +64,6 @@ passport.use(
           });
         }
 
-        // Generate JWT token
         const token = generateToken({ userId: user.id, role: user.role });
 
         return done(null, { user, token });
@@ -79,12 +74,10 @@ passport.use(
   )
 );
 
-// Serialize user for session
 passport.serializeUser((user: any, done) => {
   done(null, user);
 });
 
-// Deserialize user from session
 passport.deserializeUser((user: any, done) => {
   done(null, user);
 });

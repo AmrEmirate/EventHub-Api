@@ -14,28 +14,23 @@ class EventRouter {
   }
 
   private initializeRoutes(): void {
-    // Rute Publik
     this.router.get(
       "/",
       this.eventController.getAllEvents.bind(this.eventController)
     );
 
-    // Rute Terproteksi
     this.router.get(
       "/organizer/my-events",
       authMiddleware,
       this.eventController.getMyOrganizerEvents.bind(this.eventController)
     );
 
-    // Rute baru untuk mengambil event berdasarkan ID (untuk halaman edit)
-    // Tempatkan sebelum rute slug agar tidak terjadi konflik
     this.router.get(
       "/id/:id",
       authMiddleware,
       this.eventController.getEventById.bind(this.eventController)
     );
 
-    // Rute dinamis untuk slug (untuk halaman detail publik)
     this.router.get(
       "/:slug",
       this.eventController.getEventBySlug.bind(this.eventController)

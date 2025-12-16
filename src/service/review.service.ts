@@ -44,7 +44,7 @@ class ReviewService {
       eventId,
       rating,
       comment,
-      imageUrl, // <-- Simpan path gambar
+      imageUrl,
     });
   }
 }

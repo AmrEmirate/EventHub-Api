@@ -14,7 +14,6 @@ class TransactionRouter {
   }
 
   private initializeRoutes(): void {
-    // --- Rute untuk Pengguna (Customer) ---
     this.router.post(
       "/",
       authMiddleware,
@@ -30,8 +29,6 @@ class TransactionRouter {
       )
     );
 
-    // --- Rute untuk Penyelenggara (Organizer) ---
-    // [PERBAIKAN] Pindahkan rute statis ini ke ATAS rute dinamis '/:id'
     this.router.get(
       "/organizer",
       authMiddleware,
@@ -54,7 +51,6 @@ class TransactionRouter {
       )
     );
 
-    // [PERBAIKAN] Rute dinamis '/:id' sekarang berada di bawah rute yang lebih spesifik
     this.router.get(
       "/:id",
       authMiddleware,

@@ -6,7 +6,6 @@ class AuthRepository {
     return tx || prisma;
   }
 
-  // --- Verification Token ---
   async createVerificationToken(
     data:
       | Prisma.VerificationTokenCreateInput
@@ -36,7 +35,6 @@ class AuthRepository {
     });
   }
 
-  // --- Password Reset Token ---
   async createPasswordResetToken(
     data:
       | Prisma.PasswordResetTokenCreateInput

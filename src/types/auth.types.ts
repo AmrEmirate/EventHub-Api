@@ -1,4 +1,3 @@
-// Auth related types
 export interface RegisterInput {
   email: string;
   name: string;

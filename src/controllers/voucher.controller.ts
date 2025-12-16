@@ -3,7 +3,6 @@ import { VoucherService } from "../service/voucher.service";
 import { z } from "zod";
 import { UserRole } from "@prisma/client";
 
-// Skema validasi untuk input dari form
 const createVoucherSchema = z.object({
   eventId: z.string().uuid("Event ID tidak valid"),
   code: z
@@ -30,7 +29,6 @@ class VoucherController {
     this.voucherService = new VoucherService();
   }
 
-  // Controller untuk user (tidak berubah)
   public async getMyVouchers(req: Request, res: Response) {
     try {
       const vouchers = await this.voucherService.getVouchersByUserId(
@@ -45,7 +43,6 @@ class VoucherController {
     }
   }
 
-  // [CONTROLLER BARU] Untuk menangani pembuatan voucher oleh organizer
   public async createOrganizerVoucher(req: Request, res: Response) {
     if (req.user?.role !== UserRole.ORGANIZER) {
       return res
@@ -72,7 +69,6 @@ class VoucherController {
           errors: error.flatten().fieldErrors,
         });
       }
-      // Tangani error lain dari service (misal: kode duplikat)
       res.status(400).json({ message: error.message });
     }
   }

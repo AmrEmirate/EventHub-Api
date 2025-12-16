@@ -53,7 +53,6 @@ class UserRepository {
     });
   }
 
-  // --- Extended Methods for Relations ---
   async findByIdWithProfile(id: string, tx?: Prisma.TransactionClient) {
     return this.getClient(tx).user.findUnique({
       where: { id },

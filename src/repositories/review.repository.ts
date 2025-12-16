@@ -11,8 +11,6 @@ class ReviewRepository {
   async findUnique(args: Prisma.ReviewFindUniqueArgs): Promise<Review | null> {
     return prisma.review.findUnique(args);
   }
-
-  // Add other methods as needed based on service usage
 }
 
 export { ReviewRepository };

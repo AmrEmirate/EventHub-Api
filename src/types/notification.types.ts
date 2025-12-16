@@ -1,4 +1,3 @@
-// Notification related types
 export interface CreateNotificationInput {
   userId: string;
   message: string;

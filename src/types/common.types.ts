@@ -1,4 +1,3 @@
-// Common/shared types
 export interface ApiResponse<T = any> {
   message: string;
   data?: T;

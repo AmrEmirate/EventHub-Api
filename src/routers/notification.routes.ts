@@ -13,7 +13,6 @@ class NotificationRouter {
   }
 
   private initializeRoutes(): void {
-    // Rute untuk mendapatkan notifikasi milik pengguna
     this.router.get(
       "/me",
       authMiddleware,
@@ -22,7 +21,6 @@ class NotificationRouter {
       )
     );
 
-    // Rute untuk menandai semua notifikasi sebagai sudah dibaca
     this.router.post(
       "/me/mark-as-read",
       authMiddleware,

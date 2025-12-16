@@ -20,7 +20,6 @@ class ReviewController {
       const validatedData = createReviewSchema.parse(req.body);
       const userId = req.user!.id;
 
-      // Ambil path gambar jika ada file yang diunggah
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
 
       const review = await this.reviewService.createReview(
@@ -28,7 +27,7 @@ class ReviewController {
         validatedData.eventId,
         validatedData.rating,
         validatedData.comment,
-        imageUrl // <-- Kirim path gambar ke service
+        imageUrl
       );
 
       res.status(201).json({ message: "Ulasan berhasil dibuat", data: review });

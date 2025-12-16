@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ReviewController } from "../controllers/review.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
-import { upload } from "../middleware/upload.middleware"; // Impor middleware upload
+import { upload } from "../middleware/upload.middleware";
 
 class ReviewRouter {
   public router: Router;
@@ -14,7 +14,6 @@ class ReviewRouter {
   }
 
   private initializeRoutes(): void {
-    // Tambahkan middleware upload untuk menangani file 'imageUrl'
     this.router.post(
       "/",
       authMiddleware,

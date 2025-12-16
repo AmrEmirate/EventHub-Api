@@ -78,10 +78,6 @@ class UserService {
       });
       return updatedUser;
     } catch (error) {
-      console.error(
-        `Gagal menambahkan ${pointsToAdd} poin untuk user ${userId}:`,
-        error
-      );
       throw new Error("Gagal memperbarui poin pengguna.");
     }
   }

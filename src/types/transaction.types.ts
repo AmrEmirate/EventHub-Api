@@ -1,4 +1,3 @@
-// Transaction related types
 import { TransactionStatus } from "@prisma/client";
 
 export interface CreateTransactionInput {

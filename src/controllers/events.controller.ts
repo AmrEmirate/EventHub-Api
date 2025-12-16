@@ -6,7 +6,6 @@ import {
 } from "../service/cloudinary.service";
 import { z } from "zod";
 
-// Skema dasar event
 const rawEventSchema = z.object({
   name: z.string().min(5, { message: "Nama minimal 5 karakter" }),
   description: z.string().min(20, { message: "Deskripsi minimal 20 karakter" }),
@@ -25,7 +24,6 @@ const rawEventSchema = z.object({
   price: z.preprocess((val) => Number(val), z.number().optional()),
 });
 
-// Skema untuk membuat event
 const createEventSchema = rawEventSchema
   .refine(
     (data) => {
@@ -46,7 +44,6 @@ const createEventSchema = rawEventSchema
     return { ...data, price: data.price! };
   });
 
-// Skema untuk update event
 const updateEventSchema = rawEventSchema
   .partial()
   .refine(
@@ -129,7 +126,6 @@ class EventController {
     try {
       const validatedData = createEventSchema.parse(req.body);
 
-      // Upload image to Cloudinary if file exists
       let imageUrl = null;
       if (req.file) {
         const uploadResult = await this.cloudinaryService.uploadImage(
@@ -170,7 +166,6 @@ class EventController {
 
       const dataToUpdate: any = { ...validatedData };
 
-      // Upload new image to Cloudinary if file exists
       if (req.file) {
         const uploadResult = await this.cloudinaryService.uploadImage(
           req.file.path,

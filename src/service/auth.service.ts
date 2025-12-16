@@ -70,7 +70,7 @@ class AuthService {
       if (referrer) {
         referredById = referrer.id;
         pointsToAdd = 10000;
-        await this.userService.addPointsToUser(referrer.id, 10000); // 3 months expiry handled by pointsLastUpdatedAt logic
+        await this.userService.addPointsToUser(referrer.id, 10000);
 
         await this.notificationService.createNotification(
           referrer.id,
@@ -86,21 +86,14 @@ class AuthService {
       password: hashedPassword,
       role,
       phone,
-      referralCode: undefined, // Will be generated in repository if needed or we let DB default/logic handle it
+      referralCode: undefined,
       referredById: referredById || undefined,
     });
-    // Note: create method in repository might need update to accept referredById or handle it.
-    // Based on previous code, repository just took data. Let's assume schema matches.
-
-    // If points need to be added to new user? Logic says referrer gets points.
-    // Maybe new user gets points too? Previous code didn't explicit show adding points to new user,
-    // but there was logic about "createUserWithPoints" in my previous attempt.
-    // Let's stick to what was there: "createVoucherForNewUser" is for new user.
 
     await this.voucherService.createVoucherForNewUser(user.id);
 
     const verificationToken = generateSecureToken();
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await this.authRepository.createVerificationToken({
       userId: user.id,

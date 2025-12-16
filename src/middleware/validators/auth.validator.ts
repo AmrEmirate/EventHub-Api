@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { validate } from "./index";
 
-// Schema untuk register
 const registerSchema = z.object({
   email: z.string().email({ message: "Format email tidak valid" }),
   name: z.string().min(3, { message: "Nama minimal 3 karakter" }),
@@ -13,18 +12,15 @@ const registerSchema = z.object({
   referralCode: z.string().optional(),
 });
 
-// Schema untuk login
 const loginSchema = z.object({
   email: z.string().email({ message: "Format email tidak valid" }),
   password: z.string().min(1, { message: "Password wajib diisi" }),
 });
 
-// Schema untuk forgot password
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Format email tidak valid" }),
 });
 
-// Schema untuk reset password
 const resetPasswordSchema = z.object({
   token: z.string().min(1, { message: "Token wajib diisi" }),
   newPassword: z
@@ -32,19 +28,16 @@ const resetPasswordSchema = z.object({
     .min(6, { message: "Password baru minimal 6 karakter" }),
 });
 
-// Schema untuk Google login
 const googleLoginSchema = z.object({
   token: z.string().min(1, { message: "Token Google wajib diisi" }),
 });
 
-// Export validators
 export const validateRegister = validate(registerSchema);
 export const validateLogin = validate(loginSchema);
 export const validateForgotPassword = validate(forgotPasswordSchema);
 export const validateResetPassword = validate(resetPasswordSchema);
 export const validateGoogleLogin = validate(googleLoginSchema);
 
-// Export schemas jika dibutuhkan di tempat lain
 export {
   registerSchema,
   loginSchema,

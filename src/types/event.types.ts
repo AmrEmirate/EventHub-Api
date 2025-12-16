@@ -1,4 +1,3 @@
-// Event related types
 export interface CreateEventInput {
   name: string;
   description: string;

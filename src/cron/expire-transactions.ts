@@ -4,7 +4,6 @@ import prisma from "../config/prisma";
 class ExpireTransactionsJob {
   public async handle(req: Request, res: Response) {
     try {
-      // Cari transaksi yang pending dan sudah melewati batas bayar
       const expiredTransactions = await prisma.transaction.findMany({
         where: {
           status: "PENDING_PAYMENT",
@@ -13,7 +12,6 @@ class ExpireTransactionsJob {
       });
 
       for (const trx of expiredTransactions) {
-        // Kembalikan stok tiket dan update status transaksi
         await prisma.$transaction([
           prisma.event.update({
             where: { id: trx.eventId },

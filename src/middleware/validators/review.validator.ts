@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { validate } from "./index";
 
-// Schema untuk create review
 const createReviewSchema = z.object({
   eventId: z.string().uuid({ message: "Event ID tidak valid" }),
   rating: z.preprocess(
@@ -15,8 +14,6 @@ const createReviewSchema = z.object({
   comment: z.string().optional(),
 });
 
-// Export validators
 export const validateCreateReview = validate(createReviewSchema);
 
-// Export schemas
 export { createReviewSchema };

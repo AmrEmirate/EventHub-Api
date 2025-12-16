@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { validate } from "./index";
 
-// Schema untuk create event
 const createEventSchema = z
   .object({
     name: z.string().min(5, { message: "Nama event minimal 5 karakter" }),
@@ -41,7 +40,6 @@ const createEventSchema = z
     return { ...data, price: data.price! };
   });
 
-// Schema untuk update event (semua field optional)
 const updateEventSchema = z
   .object({
     name: z
@@ -96,9 +94,7 @@ const updateEventSchema = z
     return data;
   });
 
-// Export validators
 export const validateCreateEvent = validate(createEventSchema);
 export const validateUpdateEvent = validate(updateEventSchema);
 
-// Export schemas
 export { createEventSchema, updateEventSchema };

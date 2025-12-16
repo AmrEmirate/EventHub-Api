@@ -1,4 +1,3 @@
-// Dashboard related types
 export interface DashboardQueryParams {
   month?: number;
   year?: number;

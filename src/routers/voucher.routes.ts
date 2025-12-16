@@ -13,14 +13,12 @@ class VoucherRouter {
   }
 
   private initializeRoutes(): void {
-    // Rute untuk customer mendapatkan vouchernya
     this.router.get(
       "/me",
       authMiddleware,
       this.voucherController.getMyVouchers.bind(this.voucherController)
     );
 
-    // [RUTE BARU] Rute untuk organizer membuat voucher
     this.router.post(
       "/organizer",
       authMiddleware,

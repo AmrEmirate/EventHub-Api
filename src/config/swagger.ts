@@ -1,5 +1,14 @@
 import swaggerJsdoc from "swagger-jsdoc";
 
+const getServerUrl = () => {
+  if (!process.env.API_BASE_URL) {
+    throw new Error(
+      "API_BASE_URL environment variable is required for Swagger"
+    );
+  }
+  return process.env.API_BASE_URL.replace("/api", "");
+};
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -10,8 +19,11 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:8000",
-        description: "Development Server",
+        url: getServerUrl(),
+        description:
+          process.env.NODE_ENV === "production"
+            ? "Production Server"
+            : "Development Server",
       },
     ],
     components: {
@@ -29,7 +41,6 @@ const options = {
       },
     ],
   },
-  // Paths to files containing OpenAPI definitions
   apis: ["./src/routers/*.routes.ts", "./src/controllers/*.controller.ts"],
 };
 

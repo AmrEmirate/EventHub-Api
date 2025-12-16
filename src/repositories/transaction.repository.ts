@@ -49,7 +49,6 @@ class TransactionRepository {
     });
   }
 
-  // --- Aggregation ---
   async aggregateRevenue(organizerId: string, startDate: Date, endDate: Date) {
     return prisma.transaction.aggregate({
       _sum: { finalPrice: true },

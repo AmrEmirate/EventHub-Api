@@ -10,20 +10,16 @@ class VoucherService {
     this.eventRepository = new EventRepository();
   }
 
-  /**
-   * [DIUBAH] Mengambil voucher pengguna beserta detail event jika ada.
-   */
   public async getVouchersByUserId(userId: string) {
     const vouchers = await this.voucherRepository.findMany({
       where: {
         userId: userId,
-        isUsed: false, // Tampilkan hanya yang belum dipakai
+        isUsed: false,
         expiresAt: {
-          gte: new Date(), // Hanya yang masih berlaku
+          gte: new Date(),
         },
       },
       include: {
-        // Sertakan data nama event jika voucher ini terikat pada suatu event
         event: {
           select: {
             name: true,
@@ -37,9 +33,6 @@ class VoucherService {
     return vouchers;
   }
 
-  /**
-   * Membuat voucher hadiah untuk pengguna baru yang mendaftar via referral.
-   */
   public async createVoucherForNewUser(userId: string) {
     const threeMonthsFromNow = new Date();
     threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
@@ -60,17 +53,10 @@ class VoucherService {
       });
       return newVoucher;
     } catch (error) {
-      console.error(
-        `Gagal membuat voucher selamat datang untuk user ${userId}:`,
-        error
-      );
       throw new Error("Gagal membuat voucher untuk pengguna baru.");
     }
   }
 
-  /**
-   * Membuat voucher oleh organizer untuk event spesifik.
-   */
   public async createOrganizerVoucher(
     organizerId: string,
     data: {

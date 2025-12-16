@@ -103,7 +103,6 @@ class EventService {
       throw new Error("Event tidak ditemukan atau Anda tidak punya akses.");
     }
 
-    // Gunakan repository untuk handling delete dependencies
     return this.eventRepository.deleteWithDependencies(eventId);
   }
 
