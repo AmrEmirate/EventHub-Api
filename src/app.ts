@@ -25,7 +25,7 @@ class App {
 
   constructor() {
     this.app = express();
-    this.PORT = Number(process.env.PORT) || 8000;
+    this.PORT = Number(process.env.PORT);
     this.initializeMiddlewares();
     this.initializeRoutes();
     this.initializeSwagger();
